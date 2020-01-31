@@ -1,5 +1,4 @@
 cmake_minimum_required(VERSION 2.8)
-
 project(oscc-joystick-commander)
 
 find_package(PkgConfig REQUIRED)
@@ -24,4 +23,5 @@ target_include_directories(
 target_link_libraries(
     oscc-joystick-commander
     PRIVATE
-    ${SDL2_LIBRARIES})
+    ${SDL2_LIBRARIES}
+	m)

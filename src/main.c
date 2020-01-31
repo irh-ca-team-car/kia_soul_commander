@@ -42,10 +42,6 @@ void signal_handler( int signal_number )
 
 int main( int argc, char **argv )
 {
-    oscc_result_t ret = OSCC_OK;
-    unsigned long long update_timestamp = get_timestamp_micro();
-    unsigned long long elapsed_time = 0;
-
     int channel;
 
     errno = 0;
@@ -55,6 +51,21 @@ int main( int argc, char **argv )
         printf( "usage %s channel\n", argv[0] );
         exit( 1 );
     }
+    char m[150];
+    char* str = "ip link set can%d type can bitrate 500000\n";
+    sprintf(m,str,channel);
+    printf("%s",m);
+    system(m);
+    
+    sprintf(m,"ip link set up can%d\n",channel);
+    printf("%s",m);
+    system(m);
+    oscc_result_t ret = OSCC_OK;
+    unsigned long long update_timestamp = get_timestamp_micro();
+    unsigned long long elapsed_time = 0;
+
+   
+   
 
     struct sigaction sig;
     sig.sa_handler = signal_handler;

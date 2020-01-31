@@ -184,7 +184,19 @@ int check_for_controller_update( )
 
     return return_code;
 }
-
+static void smooth(double *v,int e)
+{
+   bool negative = *v<0;
+    
+    double tmp = *v;
+    for(int i=1;i<e;i++)
+        tmp =tmp* *v;
+    if(e==0)
+        tmp= 1-sqrt(1- tmp*tmp);
+    *v=tmp;
+        if(negative)
+            *v=-abs(*v);
+}
 static int get_normalized_position( unsigned long axis_index, double * const normalized_position )
 {
     int return_code = OSCC_ERROR;
@@ -226,6 +238,10 @@ static int get_normalized_position( unsigned long axis_index, double * const nor
             1.0);
         }
     }
+
+    //INSERTED JO
+
+    smooth(normalized_position,9);
 
     return ( return_code );
 
