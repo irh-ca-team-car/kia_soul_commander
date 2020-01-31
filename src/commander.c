@@ -20,6 +20,10 @@
 #include "can_protocols/throttle_can_protocol.h"
 #include "can_protocols/fault_can_protocol.h"
 
+extern int brake_e, throt_e, steer_e;
+extern double steer_factor;
+extern double brake_factor;
+extern double throt_factor;
 
 #define CONSTRAIN(amt, low, high) ((amt) < (low) ? (low) : ((amt) > (high) ? (high) : (amt)))
 
@@ -37,13 +41,15 @@
 #define THROTTLE_FILTER_FACTOR (0.2)
 #define STEERING_FILTER_FACTOR (0.1)
 
+//STEERING_RANGE_PERCENTAGE 0.36
+
 static int commander_enabled = COMMANDER_DISABLED;
 
 static bool control_enabled = false;
 
 static double curr_angle;
 
-static int get_normalized_position( unsigned long axis_index, double * const normalized_position );
+static int get_normalized_position( unsigned long axis_index, double * const normalized_position,int e,double f );
 static int check_trigger_positions( );
 static int commander_disable_controls( );
 static int commander_enable_controls( );
@@ -197,13 +203,13 @@ static void smooth(double *v,int e)
         if(negative)
             *v=-abs(*v);
 }
-static int get_normalized_position( unsigned long axis_index, double * const normalized_position )
+static int get_normalized_position( unsigned long axis_index, double * const normalized_position, int e ,double f)
 {
     int return_code = OSCC_ERROR;
 
     int axis_position = 0;
 
-    static const float deadzone = 0.3;
+    static const float deadzone = 0.1;
 
     return_code = joystick_get_axis( axis_index, &axis_position );
 
@@ -242,6 +248,7 @@ static int get_normalized_position( unsigned long axis_index, double * const nor
     //INSERTED JO
 
     smooth(normalized_position,9);
+    *normalized_position = *normalized_position*f;
 
     return ( return_code );
 
@@ -258,7 +265,7 @@ static int check_trigger_positions( )
 
     if ( return_code == OSCC_OK )
     {
-        return_code = get_normalized_position( JOYSTICK_AXIS_BRAKE, &normalized_brake_position );
+        return_code = get_normalized_position( JOYSTICK_AXIS_BRAKE, &normalized_brake_position, brake_e,brake_factor );
     }
 
 
@@ -266,7 +273,7 @@ static int check_trigger_positions( )
 
     if ( return_code == OSCC_OK )
     {
-        return_code = get_normalized_position( JOYSTICK_AXIS_THROTTLE, &normalized_throttle_position );
+        return_code = get_normalized_position( JOYSTICK_AXIS_THROTTLE, &normalized_throttle_position, throt_e,throt_factor );
     }
 
 
@@ -366,7 +373,7 @@ static int command_brakes( )
     {
         double normalized_position = 0;
 
-        return_code = get_normalized_position( JOYSTICK_AXIS_BRAKE, &normalized_position );
+        return_code = get_normalized_position( JOYSTICK_AXIS_BRAKE, &normalized_position,brake_e ,brake_factor);
 
         if ( return_code == OSCC_OK && normalized_position >= 0.0 )
         {
@@ -403,14 +410,14 @@ static int command_throttle( )
     {
         double normalized_throttle_position = 0;
 
-        return_code = get_normalized_position( JOYSTICK_AXIS_THROTTLE, &normalized_throttle_position );
+        return_code = get_normalized_position( JOYSTICK_AXIS_THROTTLE, &normalized_throttle_position, throt_e,throt_factor );
 
         if ( return_code == OSCC_OK && normalized_throttle_position >= 0.0 )
         {
             double normalized_brake_position = 0;
 
             // If braking, do not throttle
-            return_code = get_normalized_position( JOYSTICK_AXIS_BRAKE, &normalized_brake_position );
+            return_code = get_normalized_position( JOYSTICK_AXIS_BRAKE, &normalized_brake_position,brake_e,brake_factor );
 
             if ( normalized_brake_position >= BRAKES_ENABLED_MIN )
             {
@@ -454,7 +461,7 @@ static int command_steering( )
     {
         double normalized_position = 0;
 
-        return_code = get_normalized_position( JOYSTICK_AXIS_STEER, &normalized_position );
+        return_code = get_normalized_position( JOYSTICK_AXIS_STEER, &normalized_position,steer_e,steer_factor );
 
         if( return_code == OSCC_OK )
         {
