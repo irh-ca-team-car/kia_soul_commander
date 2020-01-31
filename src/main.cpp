@@ -9,6 +9,7 @@
 #include "oscc.h"
 #include "commander.h"
 #include "can_protocols/steering_can_protocol.h"
+#include "ros/ros.h"
 
 #define COMMANDER_UPDATE_INTERVAL_MICRO (5000)
 #define SLEEP_TICK_INTERVAL_MICRO (1000)
@@ -45,7 +46,7 @@ void signal_handler(int signal_number)
         error_thrown = OSCC_ERROR;
     }
 }
-void print_smooth(char *c, int e,double d)
+void print_smooth(const char *c, int e,double d)
 {
     char *tmp;
     char m[50];
@@ -70,8 +71,10 @@ void print_smooths()
     print_smooth("throttle",throt_e,throt_factor);
     print_smooth("steering",steer_e,steer_factor);
 }
-int main(int argc, char **argv)
+int main(int argc, char *argv[])
 {
+    ros::init(argc, argv, "drivekit");
+
     int channel;
 
     errno = 0;
@@ -119,7 +122,7 @@ int main(int argc, char **argv)
     }
     print_smooths();
     char m[150];
-    char *str = "ip link set can%d type can bitrate 500000\n";
+    const char *str = "ip link set can%d type can bitrate 500000\n";
     sprintf(m, str, channel);
     //printf("%s",m);
     system(m);
@@ -135,7 +138,7 @@ int main(int argc, char **argv)
     sig.sa_handler = signal_handler;
     sigaction(SIGINT, &sig, NULL);
 
-    ret = commander_init(channel);
+    ret = (oscc_result_t)commander_init(channel);
 
     if (ret == OSCC_OK)
     {
@@ -154,7 +157,7 @@ int main(int argc, char **argv)
             {
                 update_timestamp = get_timestamp_micro();
 
-                ret = check_for_controller_update();
+                ret =(oscc_result_t) check_for_controller_update();
             }
 
             // Delay 1 ms to avoid loading the CPU
