@@ -14,13 +14,14 @@ add_executable(
     src/commander.cpp
     src/joystick.cpp
     src/main.cpp
-    oscc/api/src/oscc.cpp)
+    src/oscc.cpp)
 
 target_include_directories(
     oscc-joystick-commander
     PRIVATE
     include
     oscc/api/include
+    oscc/api/src
     ${SDL2_INCLUDE_DIRS}
     /opt/ros/melodic/include)
 

@@ -11,6 +11,8 @@
 #include "can_protocols/steering_can_protocol.h"
 #include "ros/ros.h"
 #include "std_msgs/Float64.h"
+#define STEERING_RANGE_PERCENTAGE (0.36)
+void smooth(double *v,int e);
 
 #define COMMANDER_UPDATE_INTERVAL_MICRO (5000)
 #define SLEEP_TICK_INTERVAL_MICRO (1000)

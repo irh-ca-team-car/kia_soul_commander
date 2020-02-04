@@ -20,6 +20,9 @@
 #include "can_protocols/throttle_can_protocol.h"
 #include "can_protocols/fault_can_protocol.h"
 
+#define STEERING_RANGE_PERCENTAGE (0.36)
+void smooth(double *v,int e);
+
 extern int brake_e, throt_e, steer_e;
 extern double steer_factor;
 extern double brake_factor;
@@ -40,7 +43,7 @@ extern double throt_factor;
 #define BRAKE_FILTER_FACTOR (0.2)
 #define THROTTLE_FILTER_FACTOR (0.2)
 #define STEERING_FILTER_FACTOR (0.1)
-
+#define STEERING_RANGE_PERCENTAGE (0.36)
 //STEERING_RANGE_PERCENTAGE 0.36
 
 static int commander_enabled = COMMANDER_DISABLED;
