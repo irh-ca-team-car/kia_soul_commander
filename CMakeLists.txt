@@ -29,4 +29,8 @@ target_link_libraries(
     PRIVATE
     ${SDL2_LIBRARIES}
 	m
-    /opt/ros/melodic/lib/libroscpp.so)
+    /opt/ros/melodic/lib/libroscpp.so
+    /opt/ros/melodic/lib/librosconsole.so
+    /opt/ros/melodic/lib/libroscpp_serialization.so
+    /opt/ros/melodic/lib/libroslib.so
+    /opt/ros/melodic/lib/libxmlrpcpp.so)

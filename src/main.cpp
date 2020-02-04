@@ -10,6 +10,7 @@
 #include "commander.h"
 #include "can_protocols/steering_can_protocol.h"
 #include "ros/ros.h"
+#include "std_msgs/Float64.h"
 
 #define COMMANDER_UPDATE_INTERVAL_MICRO (5000)
 #define SLEEP_TICK_INTERVAL_MICRO (1000)
@@ -46,34 +47,50 @@ void signal_handler(int signal_number)
         error_thrown = OSCC_ERROR;
     }
 }
-void print_smooth(const char *c, int e,double d)
+void print_smooth(const char *c, int e, double d)
 {
     char *tmp;
     char m[50];
     if (e == 0)
-        sprintf(m,"y=1-sqrt(1-x^2)*sign(x)*%lf",d);
-    if (e==1)
-        sprintf(m,"y=x*%lf",d);
-    if(e>=2)
+        sprintf(m, "y=1-sqrt(1-x^2)*sign(x)*%lf", d);
+    if (e == 1)
+        sprintf(m, "y=x*%lf", d);
+    if (e >= 2)
     {
-        if(e%2==0)
-            sprintf(m,"y=x^%d*%lf",e,d);
+        if (e % 2 == 0)
+            sprintf(m, "y=x^%d*%lf", e, d);
         else
-            sprintf(m,"y=x^%d*sign(x)*%lf",e,d);
-        
+            sprintf(m, "y=x^%d*sign(x)*%lf", e, d);
     }
-    tmp=m;
-    printf("Smoothing for %s is set to %s\n",c,tmp);
+    tmp = m;
+    printf("Smoothing for %s is set to %s\n", c, tmp);
 }
 void print_smooths()
 {
-    print_smooth("braking",brake_e,brake_factor);
-    print_smooth("throttle",throt_e,throt_factor);
-    print_smooth("steering",steer_e,steer_factor);
+    print_smooth("braking", brake_e, brake_factor);
+    print_smooth("throttle", throt_e, throt_factor);
+    print_smooth("steering", steer_e, steer_factor);
+}
+void steering_callback(const std_msgs::Float64::ConstPtr &msg)
+{
+    double d = msg->data;
+    smooth(&d, steer_e);
+    oscc_publish_steering_torque(msg->data * STEERING_RANGE_PERCENTAGE);
+}
+void throttle_callback(const std_msgs::Float64::ConstPtr &msg)
+{
+    double d = msg->data;
+    smooth(&d, throt_e);
+    oscc_publish_throttle_position(d);
+}
+void brake_callback(const std_msgs::Float64::ConstPtr &msg)
+{
+    double d = msg->data;
+    smooth(&d, brake_e);
+    oscc_publish_brake_position(d);
 }
 int main(int argc, char *argv[])
 {
-    ros::init(argc, argv, "drivekit");
 
     int channel;
 
@@ -121,6 +138,7 @@ int main(int argc, char *argv[])
         throt_factor = 1;
     }
     print_smooths();
+
     char m[150];
     const char *str = "ip link set can%d type can bitrate 500000\n";
     sprintf(m, str, channel);
@@ -137,6 +155,12 @@ int main(int argc, char *argv[])
     struct sigaction sig;
     sig.sa_handler = signal_handler;
     sigaction(SIGINT, &sig, NULL);
+
+    ros::init(argc, argv, "drivekit");
+    ros::NodeHandle n;
+    ros::Subscriber sub_steer = n.subscribe("steering", 1, steering_callback);
+    ros::Subscriber sub_throt = n.subscribe("throttle", 1, throttle_callback);
+    ros::Subscriber sub_brake = n.subscribe("brake", 1, brake_callback);
 
     ret = (oscc_result_t)commander_init(channel);
 
@@ -157,7 +181,7 @@ int main(int argc, char *argv[])
             {
                 update_timestamp = get_timestamp_micro();
 
-                ret =(oscc_result_t) check_for_controller_update();
+                ret = (oscc_result_t)check_for_controller_update();
             }
 
             // Delay 1 ms to avoid loading the CPU
@@ -165,6 +189,5 @@ int main(int argc, char *argv[])
         }
         commander_close(channel);
     }
-
     return 0;
 }

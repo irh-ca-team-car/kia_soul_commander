@@ -32,7 +32,7 @@ extern double throt_factor;
 #define JOYSTICK_AXIS_STEER (SDL_CONTROLLER_AXIS_LEFTX)
 #define JOYSTICK_BUTTON_ENABLE_CONTROLS (SDL_CONTROLLER_BUTTON_START)
 #define JOYSTICK_BUTTON_DISABLE_CONTROLS (SDL_CONTROLLER_BUTTON_BACK)
-#define STEERING_RANGE_PERCENTAGE (0.36)
+
 #define BRAKES_ENABLED_MIN (0.05)
 #define JOYSTICK_DELAY_INTERVAL (50000)
 #define COMMANDER_ENABLED ( 1 )
@@ -190,7 +190,7 @@ int check_for_controller_update( )
 
     return return_code;
 }
-static void smooth(double *v,int e)
+void smooth(double *v,int e)
 {
    bool negative = *v<0;
     
