@@ -123,10 +123,12 @@ void ros_send(state car_state)
     auto msgs = std_msgs::Float64();
     msgs.data = car_state.steering_torque;
     p_steer->publish(msgs);
-    msgs.data = car_state.throttle;
-    p_steer->publish(msgs);
-    msgs.data = car_state.brakes;
-    p_brake->publish(msgs);
+    auto msgst = std_msgs::Float64();
+    msgst.data = car_state.throttle;
+    p_throt->publish(msgst);
+    auto msgsb = std_msgs::Float64();
+    msgsb.data = car_state.brakes;
+    p_brake->publish(msgsb);
     auto bmsg = std_msgs::Bool();
     bmsg.data = car_state.enabled;
     p_enabl->publish(bmsg);
@@ -190,7 +192,7 @@ int main(int argc, char *argv[])
     ros::Publisher pub_brake = n.advertise<std_msgs::Float64>("car/brake", 1);
     ros::Publisher pub_enabl = n.advertise<std_msgs::Bool>("car/enabled", 1);
     p_steer = &pub_steep;
-    p_brake = &pub_throt;
+    p_brake = &pub_brake;
     p_enabl = &pub_enabl;
     p_throt = &pub_throt;
 #endif
@@ -212,7 +214,11 @@ int main(int argc, char *argv[])
         joystick_init();
 #endif
 
-        while (ret == OSCC_OK && error_thrown == OSCC_OK)
+        while (ret == OSCC_OK && error_thrown == OSCC_OK
+#if ROS
+               && ros::ok()
+#endif
+        )
         {
 #if COMMANDER
             elapsed_time = get_elapsed_time(update_timestamp);
@@ -239,7 +245,9 @@ int main(int argc, char *argv[])
         commander_close(channel);
     }
 #endif
-
+#if JOYSTICK
+    joystick_close();
+#endif
     return 0;
 }
 bool isInteger(std::string line)
