@@ -30,7 +30,7 @@
  * \li \ref ERROR (0) if failure.
  *
  */
-int joystick_init( );
+oscc_result_t joystick_init( );
 
 
 /**
@@ -43,7 +43,7 @@ int joystick_init( );
  * \li \ref ERROR (0) if failure.
  *
  */
-int joystick_open( unsigned long device_index );
+oscc_result_t joystick_open( unsigned long device_index );
 
 
 /**
@@ -63,7 +63,7 @@ void joystick_close( );
  * \li \ref ERROR (0) if failure.
  *
  */
-int joystick_update( );
+oscc_result_t joystick_update( );
 
 
 /**
@@ -77,7 +77,7 @@ int joystick_update( );
  * \li \ref ERROR (0) if failure.
  *
  */
-int joystick_get_axis( const unsigned long axis_index, int * const position );
+oscc_result_t joystick_get_axis( const unsigned long axis_index, int * const position );
 
 
 /**
@@ -91,7 +91,11 @@ int joystick_get_axis( const unsigned long axis_index, int * const position );
  * \li \ref ERROR (0) if failure.
  *
  */
-int joystick_get_button( const unsigned long button_index,
+oscc_result_t joystick_get_button( const unsigned long button_index,
                          unsigned int * const state );
+oscc_result_t check_for_controller_update( state &car_state );
+oscc_result_t command_brakes(state &car_state);
+oscc_result_t command_throttle(state &car_state);
+oscc_result_t command_steering(state &car_state);
 
 #endif /* JOYSTICK_H */

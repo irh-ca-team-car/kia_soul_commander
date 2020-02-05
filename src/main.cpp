@@ -5,25 +5,42 @@
 #include <signal.h>
 #include <sys/time.h>
 #include <fcntl.h>
-
+#include <string>
+#include <map>
+#include <vector>
+#include <iostream>
 #include "oscc.h"
+
+#include "compile.h"
+
+#ifdef COMMANDER
 #include "commander.h"
 #include "can_protocols/steering_can_protocol.h"
+#endif
+#ifdef ROS
 #include "ros/ros.h"
 #include "std_msgs/Float64.h"
+#include "std_msgs/Bool.h"
+#endif
+#ifdef JOYSTICK
+#include "joystick.h"
+#endif
 #define STEERING_RANGE_PERCENTAGE (0.36)
-void smooth(double *v,int e);
+void smooth(double *v, int e);
 
 #define COMMANDER_UPDATE_INTERVAL_MICRO (5000)
 #define SLEEP_TICK_INTERVAL_MICRO (1000)
+state car_state;
 
 static int error_thrown = OSCC_OK;
+#if JOYSTICK
 int steer_e;
 int brake_e;
 int throt_e;
 double steer_factor;
 double brake_factor;
 double throt_factor;
+#endif
 
 static unsigned long long get_timestamp_micro()
 {
@@ -49,6 +66,7 @@ void signal_handler(int signal_number)
         error_thrown = OSCC_ERROR;
     }
 }
+#if JOYSTICK
 void print_smooth(const char *c, int e, double d)
 {
     char *tmp;
@@ -73,74 +91,74 @@ void print_smooths()
     print_smooth("throttle", throt_e, throt_factor);
     print_smooth("steering", steer_e, steer_factor);
 }
+#endif
+
+#if ROS
 void steering_callback(const std_msgs::Float64::ConstPtr &msg)
 {
     double d = msg->data;
-    smooth(&d, steer_e);
-    oscc_publish_steering_torque(msg->data * STEERING_RANGE_PERCENTAGE);
+    car_state.steering_torque = d;
 }
 void throttle_callback(const std_msgs::Float64::ConstPtr &msg)
 {
     double d = msg->data;
-    smooth(&d, throt_e);
-    oscc_publish_throttle_position(d);
+    car_state.throttle = d;
 }
 void brake_callback(const std_msgs::Float64::ConstPtr &msg)
 {
     double d = msg->data;
-    smooth(&d, brake_e);
-    oscc_publish_brake_position(d);
+    car_state.brakes = d;
 }
+void enabled_callback(const std_msgs::Bool::ConstPtr &msg)
+{
+    bool d = msg->data;
+    car_state.enabled = d;
+}
+ros::Publisher *p_steer;
+ros::Publisher *p_throt;
+ros::Publisher *p_brake;
+ros::Publisher *p_enabl;
+void ros_send(state car_state)
+{
+    auto msgs = std_msgs::Float64();
+    msgs.data = car_state.steering_torque;
+    p_steer->publish(msgs);
+    msgs.data = car_state.throttle;
+    p_steer->publish(msgs);
+    msgs.data = car_state.brakes;
+    p_brake->publish(msgs);
+    auto bmsg = std_msgs::Bool();
+    bmsg.data = car_state.enabled;
+    p_enabl->publish(bmsg);
+}
+#endif
+#if COMMANDER
+int channel;
+#endif
+void decodeParameters(int argc, char *argv[]);
 int main(int argc, char *argv[])
 {
-
-    int channel;
+    printf("V%d.%d: COMPILED WITH [", MAJOR, MINOR);
+#if ROS
+    printf(" ROS ");
+#endif
+#if JOYSTICK
+    printf(" JOYSTICK ");
+#endif
+#if COMMANDER
+    printf(" COMMANDER ");
+#endif
+    printf("]\r\n");
 
     errno = 0;
 
-    if (argc < 2 || (channel = atoi(argv[1]), errno) != 0)
-    {
-        printf("usage : sudo %s channel [steering=4] [brake=6] [throttle=5] [steering_max=1] [brake_max=1] [throttle_max=1]\n", argv[0]);
-        printf("Possible smoothing types:\n");
-        printf("    0\t:y=1-(sqrt(a-x^2)) * sign(x)\n");
-        printf("    1\t:y=x\n");
-        printf("    2\t:y=x^2 *sign(x)\n");
-        printf("    3\t:y=x^3 \n");
-        printf("  e>3\t:y=x^e (*sign(x) if e is even) \n");
-        exit(1);
-    }
-    if (argc < 3 || (steer_e = atoi(argv[2]), errno) != 0)
-    {
-        printf("No valid smoothing has been specified for steering, using y=x^4*sign(x)\n");
-        steer_e = 4;
-    }
-    if (argc < 4 || (brake_e = atoi(argv[3]), errno) != 0)
-    {
-        printf("No valid smoothing has been specified for braking, using y=x^6*sign(x)\n");
-        brake_e = 6;
-    }
-    if (argc < 5 || (throt_e = atoi(argv[4]), errno) != 0)
-    {
-        printf("No valid smoothing has been specified for throttle, using y=x^5\n");
-        throt_e = 5;
-    }
-    if (argc < 6 || (steer_factor = atof(argv[5]), errno) != 0)
-    {
-        printf("No valid factor has been specified for steering, using f=1\n");
-        steer_factor = 1;
-    }
-    if (argc < 7 || (brake_factor = atof(argv[6]), errno) != 0)
-    {
-        printf("No valid factor has been specified for braking, using f=1\n");
-        brake_factor = 1;
-    }
-    if (argc < 8 || (throt_factor = atof(argv[7]), errno) != 0)
-    {
-        printf("No valid factor has been specified for throttle, using f=1\n");
-        throt_factor = 1;
-    }
+    decodeParameters(argc, argv);
+#if JOYSTICK
     print_smooths();
+#endif
+    oscc_result_t ret = OSCC_OK;
 
+#if COMMANDER
     char m[150];
     const char *str = "ip link set can%d type can bitrate 500000\n";
     sprintf(m, str, channel);
@@ -150,46 +168,238 @@ int main(int argc, char *argv[])
     sprintf(m, "ip link set up can%d\n", channel);
     //printf("%s",m);
     system(m);
-    oscc_result_t ret = OSCC_OK;
     unsigned long long update_timestamp = get_timestamp_micro();
     unsigned long long elapsed_time = 0;
-
+#endif
     struct sigaction sig;
     sig.sa_handler = signal_handler;
-    sigaction(SIGINT, &sig, NULL);
 
+    sigaction(SIGINT, &sig, NULL);
+#if ROS
     ros::init(argc, argv, "drivekit");
     ros::NodeHandle n;
-    ros::Subscriber sub_steer = n.subscribe("steering", 1, steering_callback);
-    ros::Subscriber sub_throt = n.subscribe("throttle", 1, throttle_callback);
-    ros::Subscriber sub_brake = n.subscribe("brake", 1, brake_callback);
+#if COMMANDER
+    ros::Subscriber sub_steer = n.subscribe("car/steering/torque", 1, steering_callback);
+    ros::Subscriber sub_throt = n.subscribe("car/throttle", 1, throttle_callback);
+    ros::Subscriber sub_brake = n.subscribe("car/brake", 1, brake_callback);
+    ros::Subscriber sub_enabled = n.subscribe("car/enabled", 1, enabled_callback);
+#endif
+#if JOYSTICK
+    ros::Publisher pub_steep = n.advertise<std_msgs::Float64>("car/steering/torque", 1);
+    ros::Publisher pub_throt = n.advertise<std_msgs::Float64>("car/throttle", 1);
+    ros::Publisher pub_brake = n.advertise<std_msgs::Float64>("car/brake", 1);
+    ros::Publisher pub_enabl = n.advertise<std_msgs::Bool>("car/enabled", 1);
+    p_steer = &pub_steep;
+    p_brake = &pub_throt;
+    p_enabl = &pub_enabl;
+    p_throt = &pub_throt;
+#endif
+#endif
 
+#if COMMANDER
     ret = (oscc_result_t)commander_init(channel);
-
     if (ret == OSCC_OK)
     {
+#endif
+
+#if JOYSTICK
         printf("\nControl Ready:\n");
         printf("    START - Enable controls\n");
         printf("    BACK - Disable controls\n");
         printf("    LEFT TRIGGER - Brake\n");
         printf("    RIGHT TRIGGER - Throttle\n");
         printf("    LEFT STICK - Steering\n");
+        joystick_init();
+#endif
 
         while (ret == OSCC_OK && error_thrown == OSCC_OK)
         {
+#if COMMANDER
             elapsed_time = get_elapsed_time(update_timestamp);
 
             if (elapsed_time > COMMANDER_UPDATE_INTERVAL_MICRO)
             {
                 update_timestamp = get_timestamp_micro();
+#endif
 
-                ret = (oscc_result_t)check_for_controller_update();
+#if JOYSTICK
+                ret = (oscc_result_t)check_for_controller_update(car_state);
+#endif
+#if ROS && JOYSTICK
+                ros_send(car_state);
+#endif
+#if COMMANDER
+                commander_update(car_state);
             }
-
+#endif
             // Delay 1 ms to avoid loading the CPU
             (void)usleep(SLEEP_TICK_INTERVAL_MICRO);
         }
+#if COMMANDER
         commander_close(channel);
     }
+#endif
+
     return 0;
+}
+bool isInteger(std::string line)
+{
+    if (line.empty())
+        return false;
+    char *p;
+    strtol(line.c_str(), &p, 10);
+    return *p == 0;
+}
+bool isDouble(std::string line)
+{
+    if (line.empty())
+        return false;
+    char *p;
+    strtod(line.c_str(), &p);
+    return *p == 0;
+}
+std::string getValueForParameter(std::string name, std::vector<std::string> unnamed, std::map<std::string, std::string> named, int &idx)
+{
+    if (!named[name].empty())
+        return named.at(name);
+    if (idx < unnamed.size())
+    {
+        auto ret = unnamed[idx];
+        idx++;
+        return ret;
+    }
+    return "";
+}
+int asInt(std::string name, std::string val, int def, bool mandatory)
+{
+    int ret;
+    if (!isInteger(val.c_str()))
+    {
+        if (mandatory)
+        {
+            std::cout << "argument " + name + " is missing or invalid";
+            exit(1);
+        }
+        else
+        {
+            ret = def;
+        }
+    }
+    else
+    {
+        ret = atoi(val.c_str());
+    }
+}
+double asDouble(std::string name, std::string val, double def, bool mandatory)
+{
+    double ret;
+    if (!isDouble(val.c_str()))
+    {
+        if (mandatory)
+        {
+            std::cout << "argument " + name + " is missing or invalid";
+            exit(1);
+        }
+        else
+        {
+            ret = def;
+        }
+    }
+    else
+    {
+        ret = atof(val.c_str());
+    }
+}
+void printHelp(std::string str)
+{
+    std::cout << "usage : "
+#ifdef COMMANDER
+              << "sudo "
+#endif
+              << str
+#ifdef COMMANDER
+              << "channel"
+#endif
+#ifdef JOYSTICK
+              << "[steering=4] [brake=6] [throttle=5] [steering_max=1] [brake_max=1] [throttle_max=1]" << std::endl
+#endif
+#ifdef JOYSTICK
+              << "Possible smoothing types:" << std::endl
+              << "    0\t:y=1-(sqrt(a-x^2)) * sign(x)" << std::endl
+              << "    1\t:y=x" << std::endl
+              << "    2\t:y=x^2 *sign(x)" << std::endl
+              << "    3\t:y=x^3 " << std::endl
+              << "  e>3\t:y=x^e (*sign(x) if e is even) " << std::endl
+#endif
+              << std::endl;
+    exit(0);
+}
+int getValueForParameterInt(std::string name, std::vector<std::string> unnamed, std::map<std::string, std::string> named, int &idx, int def, bool mandatory)
+{
+    return asInt(name, getValueForParameter(name, unnamed, named, idx), def, mandatory);
+}
+int getValueForParameterDouble(std::string name, std::vector<std::string> unnamed, std::map<std::string, std::string> named, int &idx, int def, bool mandatory)
+{
+    return asDouble(name, getValueForParameter(name, unnamed, named, idx), def, mandatory);
+}
+void decodeParameters(int argc, char *argv[])
+{
+    //check parameters validity
+    bool foundNamed = false, previousIsName = false;
+    std::string previous;
+    std::map<std::string, std::string> parameters;
+    std::vector<std::string> unnamed;
+    for (auto i = 1; i < argc; i++)
+    {
+        auto isNumber = isDouble(argv[i]);
+        if (!isNumber)
+        {
+            foundNamed = true;
+            previousIsName = true;
+            previous = argv[i];
+            if (previous == "help")
+                printHelp(argv[0]);
+        }
+        else
+        {
+            if (!previousIsName && foundNamed)
+            {
+                printf("named parameters can only be at the end\r\n");
+                exit(1);
+            }
+            else if (foundNamed && previousIsName)
+            {
+                parameters[previous] = argv[i];
+            }
+            else
+            {
+                unnamed.push_back(argv[i]);
+            }
+
+            previousIsName = false;
+        }
+    }
+    int idx = 0;
+#if COMMANDER
+    channel = getValueForParameterInt("-c", unnamed, parameters, idx, 0, false);
+    channel = getValueForParameterInt("-channel", unnamed, parameters, idx, channel, false);
+#endif
+#if JOYSTICK
+    steer_e = getValueForParameterInt("-s", unnamed, parameters, idx, 4, false);
+    brake_e = getValueForParameterInt("-b", unnamed, parameters, idx, 6, false);
+    throt_e = getValueForParameterInt("-t", unnamed, parameters, idx, 5, false);
+    steer_factor = getValueForParameterDouble("-sf", unnamed, parameters, idx, 1, false);
+    brake_factor = getValueForParameterDouble("-bf", unnamed, parameters, idx, 1, false);
+    throt_factor = getValueForParameterDouble("-tf", unnamed, parameters, idx, 1, false);
+
+    std::vector<std::string> empty;
+    int i = 0;
+    steer_e = getValueForParameterInt("-steering", empty, parameters, i, steer_e, false);
+    brake_e = getValueForParameterInt("-braking", empty, parameters, i, brake_e, false);
+    throt_e = getValueForParameterInt("-throttle", empty, parameters, i, throt_e, false);
+    steer_factor = getValueForParameterDouble("-steering-factor", empty, parameters, i, steer_factor, false);
+    brake_factor = getValueForParameterDouble("-braking-factor", empty, parameters, i, brake_factor, false);
+    throt_factor = getValueForParameterDouble("-throttle-factor", empty, parameters, i, throt_factor, false);
+
+#endif
 }
