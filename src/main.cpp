@@ -114,6 +114,16 @@ void enabled_callback(const std_msgs::Bool::ConstPtr &msg)
     bool d = msg->data;
     car_state.enabled = d;
 }
+bool rosAllowedChar(char c)
+{
+    if(c>='a'&& c<='z')
+        return true;
+    if(c>='A'&& c<='Z')
+        return true;
+    if(c>='0'&& c<='9')
+        return true;
+    return false;
+}
 ros::Publisher *p_steer;
 ros::Publisher *p_throt;
 ros::Publisher *p_brake;
@@ -179,9 +189,15 @@ int main(int argc, char *argv[])
     sigaction(SIGINT, &sig, NULL);
 #if ROS
     char hostnamePtr[80];
+    char* ptr=hostnamePtr;
+    while(*ptr)
+    {
+        if(!rosAllowedChar(*ptr))
+            *ptr='_';        
+    }
     gethostname(hostnamePtr,79);
 #if COMMANDER
-    ros::init(argc, argv, std::string(hostnamePtr)+"-drivekit");
+    ros::init(argc, argv, std::string(hostnamePtr)+"_drivekit");
     ros::NodeHandle n;
     ros::Subscriber sub_steer = n.subscribe("car/steering/torque", 1, steering_callback);
     ros::Subscriber sub_throt = n.subscribe("car/throttle", 1, throttle_callback);
@@ -189,7 +205,7 @@ int main(int argc, char *argv[])
     ros::Subscriber sub_enabled = n.subscribe("car/enabled", 1, enabled_callback);
 #endif
 #if JOYSTICK
-    ros::init(argc, argv, std::string(hostnamePtr)+"-joystick");
+    ros::init(argc, argv, std::string(hostnamePtr)+"_joystick");
     ros::NodeHandle n;
     ros::Publisher pub_steep = n.advertise<std_msgs::Float64>("car/steering/torque", 1);
     ros::Publisher pub_throt = n.advertise<std_msgs::Float64>("car/throttle", 1);
