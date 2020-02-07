@@ -190,13 +190,13 @@ int main(int argc, char *argv[])
 #if ROS
     char hostnamePtr[80];
     char* ptr=hostnamePtr;
-    while(*ptr)
+    gethostname(hostnamePtr,79);
+    while(*ptr!=0)
     {
         if(!rosAllowedChar(*ptr))
             *ptr='_';     
         ptr++;   
     }
-    gethostname(hostnamePtr,79);
 #if COMMANDER
     ros::init(argc, argv, std::string(hostnamePtr)+"_drivekit");
     ros::NodeHandle n;
