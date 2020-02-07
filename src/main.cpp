@@ -193,7 +193,8 @@ int main(int argc, char *argv[])
     while(*ptr)
     {
         if(!rosAllowedChar(*ptr))
-            *ptr='_';        
+            *ptr='_';     
+        ptr++;   
     }
     gethostname(hostnamePtr,79);
 #if COMMANDER
