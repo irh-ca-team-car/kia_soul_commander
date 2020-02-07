@@ -10,7 +10,7 @@
 #include <vector>
 #include <iostream>
 #include "oscc.h"
-
+ #include <unistd.h>
 #include "compile.h"
 
 #ifdef COMMANDER
@@ -178,15 +178,19 @@ int main(int argc, char *argv[])
 
     sigaction(SIGINT, &sig, NULL);
 #if ROS
-    ros::init(argc, argv, "drivekit");
-    ros::NodeHandle n;
+    char hostnamePtr[80];
+    gethostname(hostnamePtr,79);
 #if COMMANDER
+    ros::init(argc, argv, std::string(hostnamePtr)+"/drivekit");
+    ros::NodeHandle n;
     ros::Subscriber sub_steer = n.subscribe("car/steering/torque", 1, steering_callback);
     ros::Subscriber sub_throt = n.subscribe("car/throttle", 1, throttle_callback);
     ros::Subscriber sub_brake = n.subscribe("car/brake", 1, brake_callback);
     ros::Subscriber sub_enabled = n.subscribe("car/enabled", 1, enabled_callback);
 #endif
 #if JOYSTICK
+    ros::init(argc, argv, std::string(hostnamePtr)+"/joystick");
+    ros::NodeHandle n;
     ros::Publisher pub_steep = n.advertise<std_msgs::Float64>("car/steering/torque", 1);
     ros::Publisher pub_throt = n.advertise<std_msgs::Float64>("car/throttle", 1);
     ros::Publisher pub_brake = n.advertise<std_msgs::Float64>("car/brake", 1);
