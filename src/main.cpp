@@ -181,7 +181,7 @@ int main(int argc, char *argv[])
     char hostnamePtr[80];
     gethostname(hostnamePtr,79);
 #if COMMANDER
-    ros::init(argc, argv, std::string(hostnamePtr)+"/drivekit");
+    ros::init(argc, argv, std::string(hostnamePtr)+"-drivekit");
     ros::NodeHandle n;
     ros::Subscriber sub_steer = n.subscribe("car/steering/torque", 1, steering_callback);
     ros::Subscriber sub_throt = n.subscribe("car/throttle", 1, throttle_callback);
@@ -189,7 +189,7 @@ int main(int argc, char *argv[])
     ros::Subscriber sub_enabled = n.subscribe("car/enabled", 1, enabled_callback);
 #endif
 #if JOYSTICK
-    ros::init(argc, argv, std::string(hostnamePtr)+"/joystick");
+    ros::init(argc, argv, std::string(hostnamePtr)+"-joystick");
     ros::NodeHandle n;
     ros::Publisher pub_steep = n.advertise<std_msgs::Float64>("car/steering/torque", 1);
     ros::Publisher pub_throt = n.advertise<std_msgs::Float64>("car/throttle", 1);
