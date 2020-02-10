@@ -4,12 +4,13 @@
             "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/**",
-                "/opt/ros/melodic/include/"
+                "/opt/ros/melodic/include/**",
+                "C:\\opt\\ros\\melodic\\x64\\include"
             ],
-            "defines": [],
+            "defines": ["ROS","COMMANDER","JOYSTICK"],
             "compilerPath": "/usr/bin/gcc",
             "cStandard": "c11",
-            "cppStandard": "c++17",
+            "cppStandard": "c++11",
             "intelliSenseMode": "clang-x64",
             "configurationProvider": "vector-of-bool.cmake-tools"
         }

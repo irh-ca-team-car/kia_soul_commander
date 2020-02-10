@@ -10,7 +10,7 @@
 #include <vector>
 #include <iostream>
 #include "oscc.h"
- #include <unistd.h>
+#include <unistd.h>
 #include "compile.h"
 
 #ifdef COMMANDER
@@ -21,6 +21,7 @@
 #include "ros/ros.h"
 #include "std_msgs/Float64.h"
 #include "std_msgs/Bool.h"
+#include "can_msgs.h"
 #endif
 #ifdef JOYSTICK
 #include "joystick.h"
@@ -116,11 +117,11 @@ void enabled_callback(const std_msgs::Bool::ConstPtr &msg)
 }
 bool rosAllowedChar(char c)
 {
-    if(c>='a'&& c<='z')
+    if (c >= 'a' && c <= 'z')
         return true;
-    if(c>='A'&& c<='Z')
+    if (c >= 'A' && c <= 'Z')
         return true;
-    if(c>='0'&& c<='9')
+    if (c >= '0' && c <= '9')
         return true;
     return false;
 }
@@ -128,6 +129,12 @@ ros::Publisher *p_steer;
 ros::Publisher *p_throt;
 ros::Publisher *p_brake;
 ros::Publisher *p_enabl;
+ros::Publisher *p_canbs;
+std::string brake_topic;
+std::string throt_topic;
+std::string steer_topic;
+std::string enabl_topic;
+std::string can_topic;
 void ros_send(state car_state)
 {
     auto msgs = std_msgs::Float64();
@@ -150,7 +157,7 @@ int channel;
 void decodeParameters(int argc, char *argv[]);
 int main(int argc, char *argv[])
 {
-    printf("V%d.%d: COMPILED WITH [", MAJOR, MINOR);
+    printf("V%d.%d.%d: COMPILED WITH [", MAJOR, MINOR, RELEASE);
 #if ROS
     printf(" ROS ");
 #endif
@@ -189,16 +196,16 @@ int main(int argc, char *argv[])
     sigaction(SIGINT, &sig, NULL);
 #if ROS
     char hostnamePtr[80];
-    char* ptr=hostnamePtr;
-    gethostname(hostnamePtr,79);
-    while(*ptr!=0)
+    char *ptr = hostnamePtr;
+    gethostname(hostnamePtr, 79);
+    while (*ptr != 0)
     {
-        if(!rosAllowedChar(*ptr))
-            *ptr='_';     
-        ptr++;   
+        if (!rosAllowedChar(*ptr))
+            *ptr = '_';
+        ptr++;
     }
 #if COMMANDER
-    ros::init(argc, argv, std::string(hostnamePtr)+"_drivekit");
+    ros::init(argc, argv, std::string(hostnamePtr) + "_drivekit");
     ros::NodeHandle n;
     ros::Subscriber sub_steer = n.subscribe("car/steering/torque", 1, steering_callback);
     ros::Subscriber sub_throt = n.subscribe("car/throttle", 1, throttle_callback);
@@ -206,16 +213,18 @@ int main(int argc, char *argv[])
     ros::Subscriber sub_enabled = n.subscribe("car/enabled", 1, enabled_callback);
 #endif
 #if JOYSTICK
-    ros::init(argc, argv, std::string(hostnamePtr)+"_joystick");
+    ros::init(argc, argv, std::string(hostnamePtr) + "_joystick");
     ros::NodeHandle n;
-    ros::Publisher pub_steep = n.advertise<std_msgs::Float64>("car/steering/torque", 1);
-    ros::Publisher pub_throt = n.advertise<std_msgs::Float64>("car/throttle", 1);
-    ros::Publisher pub_brake = n.advertise<std_msgs::Float64>("car/brake", 1);
-    ros::Publisher pub_enabl = n.advertise<std_msgs::Bool>("car/enabled", 1);
+    ros::Publisher pub_steep = n.advertise<std_msgs::Float64>(steer_topic, 1);
+    ros::Publisher pub_throt = n.advertise<std_msgs::Float64>(throt_topic, 1);
+    ros::Publisher pub_brake = n.advertise<std_msgs::Float64>(brake_topic, 1);
+    ros::Publisher pub_enabl = n.advertise<std_msgs::Bool>(enabl_topic, 1);
+    ros::Publisher pub_canbs = n.advertise<can_msgs::Frame>(can_topic,1);
     p_steer = &pub_steep;
     p_brake = &pub_brake;
     p_enabl = &pub_enabl;
     p_throt = &pub_throt;
+    p_canbs = &pub_canbs;
 #endif
 #endif
 
@@ -297,7 +306,11 @@ std::string getValueForParameter(std::string name, std::vector<std::string> unna
         idx++;
         return ret;
     }
-    return "";
+    return "\b";
+}
+bool isParameterPresent(std::string name, std::map<std::string, std::string> named)
+{
+    return (!named[name].empty());
 }
 int asInt(std::string name, std::string val, int def, bool mandatory)
 {
@@ -367,9 +380,15 @@ int getValueForParameterInt(std::string name, std::vector<std::string> unnamed, 
 {
     return asInt(name, getValueForParameter(name, unnamed, named, idx), def, mandatory);
 }
-int getValueForParameterDouble(std::string name, std::vector<std::string> unnamed, std::map<std::string, std::string> named, int &idx, int def, bool mandatory)
+double getValueForParameterDouble(std::string name, std::vector<std::string> unnamed, std::map<std::string, std::string> named, int &idx, double def, bool mandatory)
 {
     return asDouble(name, getValueForParameter(name, unnamed, named, idx), def, mandatory);
+}
+std::string getValueForParameterString(std::string name, std::vector<std::string> unnamed, std::map<std::string, std::string> named, int &idx, std::string def, bool mandatory)
+{
+    std::string tmp = getValueForParameter(name, unnamed, named, idx);
+    if (tmp.empty())
+        return def;
 }
 void decodeParameters(int argc, char *argv[])
 {
@@ -381,22 +400,22 @@ void decodeParameters(int argc, char *argv[])
     for (auto i = 1; i < argc; i++)
     {
         auto isNumber = isDouble(argv[i]);
-        if (!isNumber)
+        auto isNamed = !isNumber && argv[i][0] == '-';
+        if (isNamed)
         {
+            if (previousIsName)
+                parameters[previous] = "<exists>";
             foundNamed = true;
             previousIsName = true;
             previous = argv[i];
             if (previous == "help")
                 printHelp(argv[0]);
+            if (i == argc - 1)
+                parameters[previous] = "<exists>";
         }
-        else
+        else //not named
         {
-            if (!previousIsName && foundNamed)
-            {
-                printf("named parameters can only be at the end\r\n");
-                exit(1);
-            }
-            else if (foundNamed && previousIsName)
+            if (foundNamed && previousIsName)
             {
                 parameters[previous] = argv[i];
             }
@@ -408,7 +427,19 @@ void decodeParameters(int argc, char *argv[])
             previousIsName = false;
         }
     }
+    for (auto it = parameters.begin(), end = parameters.end(); it != end; it++)
+    {
+        std::cout << "GOT PARAMETER " << it->first << " = " << it->second << std::endl;
+    }
+
+    for (auto it = unnamed.begin(), end = unnamed.end(); it != end; it++)
+    {
+        std::cout << "GOT UNNAMED PARAMETER " << *it << std::endl;
+    }
+
     int idx = 0;
+    std::vector<std::string> empty;
+    int i_empty = 0;
 #if COMMANDER
     channel = getValueForParameterInt("-c", unnamed, parameters, idx, 0, false);
     channel = getValueForParameterInt("-channel", unnamed, parameters, idx, channel, false);
@@ -421,14 +452,20 @@ void decodeParameters(int argc, char *argv[])
     brake_factor = getValueForParameterDouble("-bf", unnamed, parameters, idx, 1, false);
     throt_factor = getValueForParameterDouble("-tf", unnamed, parameters, idx, 1, false);
 
-    std::vector<std::string> empty;
-    int i = 0;
-    steer_e = getValueForParameterInt("-steering", empty, parameters, i, steer_e, false);
-    brake_e = getValueForParameterInt("-braking", empty, parameters, i, brake_e, false);
-    throt_e = getValueForParameterInt("-throttle", empty, parameters, i, throt_e, false);
-    steer_factor = getValueForParameterDouble("-steering-factor", empty, parameters, i, steer_factor, false);
-    brake_factor = getValueForParameterDouble("-braking-factor", empty, parameters, i, brake_factor, false);
-    throt_factor = getValueForParameterDouble("-throttle-factor", empty, parameters, i, throt_factor, false);
+   
+    steer_e = getValueForParameterInt("-steering", empty, parameters, i_empty, steer_e, false);
+    brake_e = getValueForParameterInt("-braking", empty, parameters, i_empty, brake_e, false);
+    throt_e = getValueForParameterInt("-throttle", empty, parameters, i_empty, throt_e, false);
+    steer_factor = getValueForParameterDouble("-steering-factor", empty, parameters, i_empty, steer_factor, false);
+    brake_factor = getValueForParameterDouble("-braking-factor", empty, parameters, i_empty, brake_factor, false);
+    throt_factor = getValueForParameterDouble("-throttle-factor", empty, parameters, i_empty, throt_factor, false);
 
+#endif
+#if ROS
+    brake_topic = getValueForParameterString("-brake-topic", empty, parameters, i_empty, "/car/brake", false);
+    throt_topic = getValueForParameterString("-throttle-topic", empty, parameters, i_empty, "/car/throttle", false);
+    steer_topic = getValueForParameterString("-steering-topic", empty, parameters, i_empty, "car/steering/torque", false);
+    enabl_topic = getValueForParameterString("-throttle-topic", empty, parameters, i_empty, "car/enabled", false);
+    can_topic = getValueForParameterString("-can-topic", empty, parameters, i_empty, "car/can0", false);
 #endif
 }

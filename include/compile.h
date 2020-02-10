@@ -1,5 +1,6 @@
 #define MAJOR 1
-#define MINOR 0
+#define MINOR 1
+#define RELEASE 0
 #ifndef COMMANDER
 #ifndef ROS
 #ifndef JOYSTICK
