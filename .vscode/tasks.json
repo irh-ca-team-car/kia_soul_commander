@@ -1,0 +1,21 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Build All Debug",
+        "type": "shell",
+        "command": "cd ${workspaceFolder}/build && make DEBUG=1 && cd ${workspaceFolder}/",
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "presentation": {
+          "reveal": "always",
+          "panel": "new"
+        },
+        "problemMatcher": [
+          "$gcc"
+        ]
+      }
+    ]
+  }
