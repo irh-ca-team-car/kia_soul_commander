@@ -211,6 +211,8 @@ int main(int argc, char *argv[])
     ros::Subscriber sub_throt = n.subscribe("car/throttle", 1, throttle_callback);
     ros::Subscriber sub_brake = n.subscribe("car/brake", 1, brake_callback);
     ros::Subscriber sub_enabled = n.subscribe("car/enabled", 1, enabled_callback);
+    ros::Publisher pub_canbs = n.advertise<can_msgs::Frame>(can_topic,1);
+     p_canbs = &pub_canbs;
 #endif
 #if JOYSTICK
     ros::init(argc, argv, std::string(hostnamePtr) + "_joystick");
@@ -219,12 +221,12 @@ int main(int argc, char *argv[])
     ros::Publisher pub_throt = n.advertise<std_msgs::Float64>(throt_topic, 1);
     ros::Publisher pub_brake = n.advertise<std_msgs::Float64>(brake_topic, 1);
     ros::Publisher pub_enabl = n.advertise<std_msgs::Bool>(enabl_topic, 1);
-    ros::Publisher pub_canbs = n.advertise<can_msgs::Frame>(can_topic,1);
+    
     p_steer = &pub_steep;
     p_brake = &pub_brake;
     p_enabl = &pub_enabl;
     p_throt = &pub_throt;
-    p_canbs = &pub_canbs;
+
 #endif
 #endif
 
@@ -360,11 +362,18 @@ void printHelp(std::string str)
 #endif
               << str
 #ifdef COMMANDER
-              << "channel"
+              << " channel "
 #endif
 #ifdef JOYSTICK
-              << "[steering=4] [brake=6] [throttle=5] [steering_max=1] [brake_max=1] [throttle_max=1]" << std::endl
+              << " [steering=4] [brake=6] [throttle=5] [steering_max=1] [brake_max=1] [throttle_max=1]" 
 #endif
+#ifdef ROS
+              << " [brake-topic=/car/brake] [throttle-topic=/car/throttle] [steering-topic=/car/steering/torque] [enabled-topic=/car/enabled]"
+#endif
+#if ROS && COMMANDER
+              << " [can-topic=/car/can0]"
+#endif
+              << std::endl
 #ifdef JOYSTICK
               << "Possible smoothing types:" << std::endl
               << "    0\t:y=1-(sqrt(a-x^2)) * sign(x)" << std::endl
@@ -408,7 +417,7 @@ void decodeParameters(int argc, char *argv[])
             foundNamed = true;
             previousIsName = true;
             previous = argv[i];
-            if (previous == "help")
+            if (previous == "-help")
                 printHelp(argv[0]);
             if (i == argc - 1)
                 parameters[previous] = "<exists>";
@@ -464,8 +473,8 @@ void decodeParameters(int argc, char *argv[])
 #if ROS
     brake_topic = getValueForParameterString("-brake-topic", empty, parameters, i_empty, "/car/brake", false);
     throt_topic = getValueForParameterString("-throttle-topic", empty, parameters, i_empty, "/car/throttle", false);
-    steer_topic = getValueForParameterString("-steering-topic", empty, parameters, i_empty, "car/steering/torque", false);
-    enabl_topic = getValueForParameterString("-throttle-topic", empty, parameters, i_empty, "car/enabled", false);
-    can_topic = getValueForParameterString("-can-topic", empty, parameters, i_empty, "car/can0", false);
+    steer_topic = getValueForParameterString("-steering-topic", empty, parameters, i_empty, "/car/steering/torque", false);
+    enabl_topic = getValueForParameterString("-enabled-topic", empty, parameters, i_empty, "/car/enabled", false);
+    can_topic = getValueForParameterString("-can-topic", empty, parameters, i_empty, "/car/can0", false);
 #endif
 }
