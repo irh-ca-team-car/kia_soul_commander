@@ -192,7 +192,7 @@ int main(int argc, char *argv[])
 #endif
     struct sigaction sig;
     sig.sa_handler = signal_handler;
-
+//
     sigaction(SIGINT, &sig, NULL);
 #if ROS
     char hostnamePtr[80];
