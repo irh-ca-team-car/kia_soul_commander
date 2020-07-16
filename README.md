@@ -41,7 +41,7 @@ Clone this repository to your machine, if you have not already done so:
 
 ```sh
 # clone the repository
-$ git clone git@github.com:PolySync/oscc-joystick-commander.git
+$ git clone git@github.com:irh-ca-team-car/oscc-joystick-commander.git
 
 
 # change the current directory to the repository
@@ -78,26 +78,27 @@ $ cmake -LA .. 2>/dev/null | grep 'VEHICLE_VALUES'
 For example, to configure `cmake` to build a platform-specific Makefile for the Kia Niro, you would use the following command (from within the `build/` directory you created):
 
 ```sh
-$ cmake -DVEHICLE=kia_niro ..
+$ cmake -DVEHICLE=kia_soul_ev ..
 ```
 
 Note: You may also choose to add the flag -DDEBUG=ON to enable debug messaging, serial console, etc. This should not be used for production builds.
 
 ### CAN interface
 
-After initializing the CAN interface, use the channel number to start joystick commander and begin sending commands to the OSCC modules.
-
-For example with a Kvaser Leaf Light attached, using a bitrate of 500000 and a CAN channel of 0:
+You would then run any of the following:
 
 ```sh
- sudo ip link set can0 type can bitrate 500000
- sudo ip link set up can0
+sudo ./oscc-joystick-commander 0 [parameters]
+sudo ./oscc-joystick-ros 0 [parameters]
+sudo ./oscc-ros-commander 0 [parameters]
 ```
 
-You would then run:
+For more information about the parameters:
 
 ```sh
-./oscc-joystick-commander 0
+./oscc-joystick-commander -help
+./oscc-joystick-ros -help
+./oscc-ros-commander -help
 ```
 
 For more information on setting up a socketcan interface, check out [this guide](http://elinux.org/Bringing_CAN_interface_up).
@@ -113,11 +114,11 @@ The vehicle will only respond to commands if control is enabled with the start b
 
 ### main
 
-`main.c` is the entry point of joystick commander. Initializes OSCC interface, checks for controller updates in 5 ms intervals, and closes the interface when the program terminates. This contains the applications main loop.
+`main.cpp` is the entry point of joystick commander. Initializes OSCC interface, checks for controller updates in 5 ms intervals, and closes the interface when the program terminates. This contains the applications main loop. Initializes the ros node
 
 ### joystick
 
-`joystick.c` contains the functionality necessary to initialize and interact with the game controller.
+`joystick.cpp` contains the functionality necessary to initialize and interact with the game controller.
 
 ### commander
 
