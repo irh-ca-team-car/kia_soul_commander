@@ -1,10 +1,10 @@
 <img src="https://raw.githubusercontent.com/wiki/PolySync/OSCC/images/oscc_logo_title.png">
 
-# Joystick Commander
+# Joystick Commander [ ROS FORK ] 
 
 ## Overview
 
-Joystick commander is an example application designed to show how the Open Source Car Control API can be used to recieve reports from and send commands to a drive by-wire enabled vehicle.
+Joystick commander is an application designed to show how the Open Source Car Control API can be used to receive reports from and send commands to a drive by-wire enabled vehicle using ROS.
 
 Using an SDL2 supported game controller, inputs are normalized and converted to relative torque, throttle, and brake commands. This application also demonstrates registering callback functions to recieve and parse OSCC reports as well as vehicle state reports from the car's OBD-II CAN network.
 
