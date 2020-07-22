@@ -472,8 +472,8 @@ void decodeParameters(int argc, char *argv[])
 #endif
 #if ROS
     brake_topic = getValueForParameterString("-brake-topic", empty, parameters, i_empty, "/car/brake", false);
-    throt_topic = getValueForParameterString("-throttle-topic", empty, parameters, i_empty, "/car/throttle", false);
-    steer_topic = getValueForParameterString("-steering-topic", empty, parameters, i_empty, "/car/steering/torque", false);
+    throt_topic = getValueForParameterString("-throttle-topic", empty, parameters, i_empty, "/car/speed", false);
+    steer_topic = getValueForParameterString("-steering-topic", empty, parameters, i_empty, "/car/steering/angle", false);
     enabl_topic = getValueForParameterString("-enabled-topic", empty, parameters, i_empty, "/car/enabled", false);
     can_topic = getValueForParameterString("-can-topic", empty, parameters, i_empty, "/car/can0", false);
 #endif

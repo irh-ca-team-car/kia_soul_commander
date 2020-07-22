@@ -472,7 +472,7 @@ static oscc_result_t get_normalized_position(unsigned long axis_index, double *c
 
     //INSERTED JO
 
-    smooth(normalized_position, 9);
+    //smooth(normalized_position, 9);
     *normalized_position = *normalized_position * f;
 
     return (return_code);
