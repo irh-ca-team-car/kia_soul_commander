@@ -17,13 +17,6 @@
 #include "compile.h"
 #include "joystick.h"
 
-extern int steer_e;
-extern int brake_e;
-extern int throt_e;
-extern double steer_factor;
-extern double brake_factor;
-extern double throt_factor;
-
 #define CONSTRAIN(amt, low, high) ((amt) < (low) ? (low) : ((amt) > (high) ? (high) : (amt)))
 
 #define JOYSTICK_AXIS_THROTTLE (SDL_CONTROLLER_AXIS_TRIGGERRIGHT)
@@ -428,7 +421,7 @@ oscc_result_t check_for_controller_update(state &car_state)
 
     return return_code;
 }
-static oscc_result_t get_normalized_position(unsigned long axis_index, double *const normalized_position, int e, double f)
+static oscc_result_t get_normalized_position(unsigned long axis_index, double *const normalized_position)
 {
     oscc_result_t return_code = OSCC_ERROR;
 
@@ -470,10 +463,7 @@ static oscc_result_t get_normalized_position(unsigned long axis_index, double *c
         }
     }
 
-    //INSERTED JO
-
-    //smooth(normalized_position, 9);
-    *normalized_position = *normalized_position * f;
+    *normalized_position = *normalized_position;
 
     return (return_code);
 }
@@ -487,14 +477,14 @@ oscc_result_t check_trigger_positions()
 
     if (return_code == OSCC_OK)
     {
-        return_code = get_normalized_position(JOYSTICK_AXIS_BRAKE, &normalized_brake_position, brake_e, brake_factor);
+        return_code = get_normalized_position(JOYSTICK_AXIS_BRAKE, &normalized_brake_position);
     }
 
     double normalized_throttle_position = 0;
 
     if (return_code == OSCC_OK)
     {
-        return_code = get_normalized_position(JOYSTICK_AXIS_THROTTLE, &normalized_throttle_position, throt_e, throt_factor);
+        return_code = get_normalized_position(JOYSTICK_AXIS_THROTTLE, &normalized_throttle_position);
     }
 
     if (return_code == OSCC_OK)
@@ -511,7 +501,7 @@ oscc_result_t command_brakes(state &car_state)
 {
     oscc_result_t return_code = OSCC_OK;
     double normalized_position;
-    return_code = get_normalized_position(JOYSTICK_AXIS_BRAKE, &normalized_position,brake_e, brake_factor);
+    return_code = get_normalized_position(JOYSTICK_AXIS_BRAKE, &normalized_position);
     if (return_code == OSCC_OK && normalized_position >= 0.0)
     {
         car_state.brakes=normalized_position;
@@ -522,7 +512,7 @@ oscc_result_t command_steering(state &car_state)
 {
     oscc_result_t return_code = OSCC_OK;
     double normalized_position;
-    return_code = get_normalized_position(JOYSTICK_AXIS_STEER, &normalized_position,steer_e, steer_factor);
+    return_code = get_normalized_position(JOYSTICK_AXIS_STEER, &normalized_position);
     if (return_code == OSCC_OK )
     {
         car_state.steering_torque=normalized_position* STEERING_RANGE_PERCENTAGE;
@@ -533,7 +523,7 @@ oscc_result_t command_throttle(state &car_state)
 {
     oscc_result_t return_code = OSCC_OK;
     double normalized_position;
-    return_code = get_normalized_position(JOYSTICK_AXIS_THROTTLE, &normalized_position,throt_e, throt_factor);
+    return_code = get_normalized_position(JOYSTICK_AXIS_THROTTLE, &normalized_position);
     if (return_code == OSCC_OK&& normalized_position >= 0.0 )
     {
         car_state.throttle=normalized_position;

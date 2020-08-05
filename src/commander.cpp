@@ -20,7 +20,12 @@
 #include "can_protocols/throttle_can_protocol.h"
 #include "can_protocols/fault_can_protocol.h"
 
-
+#ifdef ROS
+#include "ros/ros.h"
+#include "std_msgs/Float64.h"
+#include "std_msgs/Bool.h"
+#include "can_msgs.h"
+#endif
 
 #define STEERING_RANGE_PERCENTAGE (0.36)
 
@@ -200,7 +205,10 @@ static void fault_callback(oscc_fault_report_s *report)
         printf("Throttle\n");
     }
 }
-
+#if ROS
+extern ros::Publisher *p_curr_angle;
+extern ros::Publisher *p_curr_speed;
+#endif
 // To cast specific OBD messages, you need to know the structure of the
 // data fields and the CAN_ID.
 static void obd_callback(struct can_frame *frame)
@@ -210,6 +218,27 @@ static void obd_callback(struct can_frame *frame)
         kia_soul_obd_steering_wheel_angle_data_s *steering_data = (kia_soul_obd_steering_wheel_angle_data_s *)frame->data;
 
         curr_angle = steering_data->steering_wheel_angle * KIA_SOUL_OBD_STEERING_ANGLE_SCALAR;
+
+        #if ROS
+        auto msgst = std_msgs::Float64();
+        msgst.data = curr_angle;
+        p_curr_angle->publish(msgst);
+
+        #endif
+    }
+    if(frame->can_id == KIA_SOUL_OBD_WHEEL_SPEED_CAN_ID)
+    {
+        long offset=0;
+        uint16_t raw = ((frame->data[offset + 1] & 0x0F) << 8) | frame->data[offset];
+        // 10^-1 precision, raw / 32.0
+        double wheel_speed = (double)((int)((double)raw / 3.2) / 10.0);
+        
+        #if ROS
+        auto msgst = std_msgs::Float64();
+        msgst.data = wheel_speed;
+        p_curr_speed->publish(msgst);
+
+        #endif
     }
 }
 
