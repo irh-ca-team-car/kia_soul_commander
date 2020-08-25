@@ -19,7 +19,8 @@ const double MAX_ACCELARATION = 1.0; // m/s2
 const double MAX_DECELARATION = 1.0; // m/s2
 const double KIA_SOUL_DECELERATION = 8; // m/s2
 const double SPEED_KP = 1850, SPEED_KI = 8.3, SPEED_KD = 1900, SPEED_DIV = (10000 * KIA_SOUL_ACCELERATION);
-const double STEERING_KP = 0, STEERING_KI = 0, STEERING_KD = 0, STEERING_DIV = 0;
+const double STEERING_KP = 0.125, STEERING_KI = 0, STEERING_KD = 0, STEERING_DIV = 2;
+const int N=20;
 
 double steering = 0, speed = 0, steering_actual = 0, speed_actual = 0;
 ros::Publisher pub_torque;
@@ -84,21 +85,42 @@ int main(int argc, char *argv[])
     double previous_error_speed = 0;
     double sum_error_steering = 0;
     double previous_error_steering = 0;
+    double last_accelerations[N];
+    double last_steerings[N];
+    int index = 0, count_cmd = N;
+    for (int i = 0; i < N; i++)
+    {
+        last_accelerations[i] = 0;
+        last_steerings[i] = 0;
+    }
+    
 
     while(ros::ok())
     {
         ros::spinOnce();
         rate.sleep();
+        ++count_cmd;
+        if (count_cmd > N) count_cmd = N;
 
         double steering_error = steering_actual - steering;
         sum_error_steering += steering_error;
         double steering_delta_error = steering_error-previous_error_steering;
         previous_error_steering = steering_error;
-        double cmd = (STEERING_KP*steering_error + STEERING_KI*sum_error_steering + STEERING_KD*steering_delta_error) / STEERING_DIV;
-        if(cmd < 0) cmd=0;
-        else if(cmd > 255) cmd = 255;
+        double steering_cmd = -(STEERING_KP*steering_error + STEERING_KI*sum_error_steering + STEERING_KD*steering_delta_error) / STEERING_DIV;
+        if(steering_cmd < -1) steering_cmd= -1;
+        if(steering_cmd > 1) steering_cmd = 1;
+        printf("%lf, %lf, %lf \r\n",steering_actual ,steering , steering_cmd);
+        last_steerings[index] = steering_cmd;
 
-        double torque = steering;
+        double torque = 0;
+        for (int i = 0; i < count_cmd; i++)
+        {
+            double cmd = last_steerings[i];
+            if(steering_cmd<0 && cmd < steering_cmd)cmd=steering_cmd;
+            if(steering_cmd>0 && cmd > steering_cmd)cmd=steering_cmd;
+            torque += cmd;
+        }
+        torque /= count_cmd;
 
         auto msg_torque = std_msgs::Float64();
         msg_torque.data = torque;
@@ -108,13 +130,24 @@ int main(int argc, char *argv[])
         sum_error_speed += speed_error;
         double speed_delta_error = speed_error-previous_error_speed;
         previous_error_speed = speed_error;
-        double cmd = (SPEED_KP*speed_error + SPEED_KI*sum_error_speed + SPEED_KD*speed_delta_error) / SPEED_DIV;
-        cmd = -cmd;
-        if (cmd < -MAX_DECELARATION / KIA_SOUL_DECELERATION) cmd = -MAX_DECELARATION / KIA_SOUL_DECELERATION;
-        if (cmd >MAX_ACCELARATION / KIA_SOUL_ACCELERATION) cmd = MAX_ACCELARATION / KIA_SOUL_ACCELERATION;
-        double acceleration = (cmd>0)?cmd:0;
-        double brake = (cmd<0)?-cmd:0;
-        printf("%lf, %lf, %lf, %lf \r\n",speed_actual ,speed , acceleration, brake);
+        double speed_cmd = (SPEED_KP*speed_error + SPEED_KI*sum_error_speed + SPEED_KD*speed_delta_error) / SPEED_DIV;
+        speed_cmd = -speed_cmd;
+        if (speed_cmd < -MAX_DECELARATION / KIA_SOUL_DECELERATION) speed_cmd = -MAX_DECELARATION / KIA_SOUL_DECELERATION;
+        if (speed_cmd >MAX_ACCELARATION / KIA_SOUL_ACCELERATION) speed_cmd = MAX_ACCELARATION / KIA_SOUL_ACCELERATION;
+        double acceleration_cmd = (speed_cmd>0)?speed_cmd:0;
+        double brake = (speed_cmd<0)?-speed_cmd:0;
+
+         last_accelerations[index] = acceleration_cmd;
+
+        double acceleration = 0;
+        for (int i = 0; i < count_cmd; i++)
+        {
+          double cmd = last_accelerations[i];
+            if(acceleration_cmd<0 && cmd < acceleration_cmd)cmd=acceleration_cmd;
+            if(acceleration_cmd>0 && cmd > acceleration_cmd)cmd=acceleration_cmd;
+            acceleration += cmd;
+        }
+        acceleration /= count_cmd;
 
         auto msg_accel = std_msgs::Float64();
         msg_accel.data = acceleration;
@@ -122,6 +155,8 @@ int main(int argc, char *argv[])
         auto msg_brake = std_msgs::Float64();
         msg_brake.data = brake;
         pub_brake.publish(msg_brake);
+        ++index;
+        if (index == N) index = 0;
     }
     
     return 0;
