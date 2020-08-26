@@ -222,6 +222,9 @@ int main(int argc, char *argv[])
         )
         {
 #if COMMANDER
+#if ROS
+            ros::spinOnce();
+#endif
             elapsed_time = get_elapsed_time(update_timestamp);
 
             if (elapsed_time > COMMANDER_UPDATE_INTERVAL_MICRO)
