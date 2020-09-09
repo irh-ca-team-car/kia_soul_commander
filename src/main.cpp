@@ -170,21 +170,21 @@ int main(int argc, char *argv[])
         ptr++;
     }
 #if COMMANDER
-    ros::init(argc, argv, std::string(hostnamePtr) + "_drivekit");
+    ros::init(argc, argv, "car_drivekit");
     ros::NodeHandle n;
     ros::Subscriber sub_steer = n.subscribe("car/steering/torque", 1, steering_callback);
     ros::Subscriber sub_throt = n.subscribe("car/throttle", 1, throttle_callback);
     ros::Subscriber sub_brake = n.subscribe("car/brake", 1, brake_callback);
     ros::Subscriber sub_enabled = n.subscribe("car/enabled", 1, enabled_callback);
-    ros::Publisher pub_canbs = n.advertise<can_msgs::Frame>(can_topic,1);
-    ros::Publisher pub_curr_speed= n.advertise<std_msgs::Float64>(current_speed_topic,1);
-    ros::Publisher pub_curr_angle= n.advertise<std_msgs::Float64>(current_steer_angle_topic,1);
+    ros::Publisher pub_canbs = n.advertise<can_msgs::Frame>("car/can0",1);
+    ros::Publisher pub_curr_speed= n.advertise<std_msgs::Float64>("car/speed/actual",1);
+    ros::Publisher pub_curr_angle= n.advertise<std_msgs::Float64>("car/steering/angle/actual",1);
     p_canbs = &pub_canbs;
     p_curr_speed =&pub_curr_speed;
     p_curr_angle=&pub_curr_angle;
 #endif
 #if JOYSTICK
-    ros::init(argc, argv, std::string(hostnamePtr) + "_joystick");
+    ros::init(argc, argv, "joystick_ros");
     ros::NodeHandle n;
     ros::Publisher pub_steep = n.advertise<std_msgs::Float64>(steer_topic, 1);
     ros::Publisher pub_throt = n.advertise<std_msgs::Float64>(throt_topic, 1);
