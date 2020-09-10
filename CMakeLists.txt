@@ -23,11 +23,6 @@ add_executable(
     src/main.cpp
     src/oscc.cpp)
 
-add_executable(
-    oscc-joystick-ros
-    src/joystick.cpp
-    src/main.cpp
-    src/oscc.cpp)
 
 add_executable(
     oscc-ros-commander
@@ -66,22 +61,6 @@ target_link_libraries(
     /opt/ros/melodic/lib/libxmlrpcpp.so)
 
 target_include_directories(
-    oscc-joystick-ros
-    PRIVATE
-    ${my_includes})
-
-target_link_libraries(
-    oscc-joystick-ros
-    PRIVATE
-    ${SDL2_LIBRARIES}
-	m
-    /opt/ros/melodic/lib/libroscpp.so
-    /opt/ros/melodic/lib/librosconsole.so
-    /opt/ros/melodic/lib/libroscpp_serialization.so
-    /opt/ros/melodic/lib/libroslib.so
-    /opt/ros/melodic/lib/libxmlrpcpp.so)
-
-target_include_directories(
     steering-servitude
     PRIVATE
     ${my_includes})
@@ -99,4 +78,3 @@ target_link_libraries(
 
 target_compile_definitions(oscc-joystick-commander PRIVATE JOYSTICK COMMANDER)
 target_compile_definitions(oscc-ros-commander PRIVATE COMMANDER ROS)
-target_compile_definitions(oscc-joystick-ros PRIVATE JOYSTICK ROS)
