@@ -88,16 +88,16 @@ Note: You may also choose to add the flag -DDEBUG=ON to enable debug messaging, 
 You would then run any of the following:
 
 ```sh
-sudo ./oscc-joystick-commander 0 [parameters]
-sudo ./oscc-joystick-ros 0 [parameters]
-sudo ./oscc-ros-commander 0 [parameters]
+sudo ./oscc-joystick-commander [channel=0]
+#this one must be run as root, not sudo
+su root
+./oscc-ros-commander [channel=0]
 ```
 
 For more information about the parameters:
 
 ```sh
 ./oscc-joystick-commander -help
-./oscc-joystick-ros -help
 ./oscc-ros-commander -help
 ```
 
@@ -114,7 +114,7 @@ The vehicle will only respond to commands if control is enabled with the start b
 
 ### main
 
-`main.cpp` is the entry point of joystick commander. Initializes OSCC interface, checks for controller updates in 5 ms intervals, and closes the interface when the program terminates. This contains the applications main loop. Initializes the ros node
+`main.cpp` is the entry point of oscc commander. Initializes OSCC interface, checks for controller updates in 5 ms intervals for `oscc-joystick-commander` or ros topics ros for `oscc-ros-commander`, and closes the interface when the program terminates. This contains the applications main loop. Initializes the ros node for `oscc-ros-commander`
 
 ### joystick
 
@@ -122,7 +122,9 @@ The vehicle will only respond to commands if control is enabled with the start b
 
 ### commander
 
-The commander files contain the joystick commander's interactivity with the OSCC API. It demonstrates opening and closing the CAN channel communications with OSCC's control CAN network, sending enable/disable commands to the modules through the API, retrieving OSCC reports through callback functions, and sending commands through the OSCC `publish` functions.
+`commander.cpp` The commander files contain the joystick commander's interactivity with the OSCC API. It demonstrates opening and closing the CAN channel communications with OSCC's control CAN network, sending enable/disable commands to the modules through the API, retrieving OSCC reports through callback functions, and sending commands through the OSCC `publish` functions.
+
+`oscc.cpp` is a C++ version os `oscc.c` in the submodule oscc
 
 # Using OSCC API
 
