@@ -86,6 +86,7 @@ void brake_callback(const std_msgs::Float64::ConstPtr &msg)
 void enabled_callback(const std_msgs::Bool::ConstPtr &msg)
 {
     bool d = msg->data;
+    std::cout << "ROS:car/enabled::" << d<<std::endl;
     if(car_state.enabled!=d)
     {
         std::cout <<  "DRIVEKIT STATE CHANGED TO "<<d<<std::endl;
