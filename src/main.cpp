@@ -26,11 +26,17 @@
 #ifdef JOYSTICK
 #include "joystick.h"
 #endif
-#define STEERING_RANGE_PERCENTAGE (0.36)
-void smooth(double *v, int e);
-
 #define COMMANDER_UPDATE_INTERVAL_MICRO (5000)
 #define SLEEP_TICK_INTERVAL_MICRO (1000)
+
+#define CAN_TOPIC "car/can0"
+#define CAR_ENABLED_TOPIC "car/enabled"
+#define CAR_BRAKE_TOPIC "car/brake"
+#define CAR_THROTTLE_TOPIC "car/throttle"
+#define CAR_STEERING_TORQUE_TOPIC "car/steering/torque"
+#define CAR_SPEED_FEEDBACK_TOPIC "car/speed/actual"
+#define CAR_ANGLE_FEEDBACK_TOPIC "car/steering/angle/actual"
+
 state car_state;
 
 static int error_thrown = OSCC_OK;
@@ -61,6 +67,7 @@ void signal_handler(int signal_number)
 }
 
 #if ROS
+//for ros-commander
 void steering_callback(const std_msgs::Float64::ConstPtr &msg)
 {
     double d = msg->data;
@@ -79,47 +86,18 @@ void brake_callback(const std_msgs::Float64::ConstPtr &msg)
 void enabled_callback(const std_msgs::Bool::ConstPtr &msg)
 {
     bool d = msg->data;
+    std::cout << "ROS:car/enabled::" << d<<std::endl;
+    if(car_state.enabled!=d)
+    {
+        std::cout <<  "DRIVEKIT STATE CHANGED TO "<<d<<std::endl;
+    }
     car_state.enabled = d;
 }
-bool rosAllowedChar(char c)
-{
-    if (c >= 'a' && c <= 'z')
-        return true;
-    if (c >= 'A' && c <= 'Z')
-        return true;
-    if (c >= '0' && c <= '9')
-        return true;
-    return false;
-}
-ros::Publisher *p_steer;
-ros::Publisher *p_throt;
-ros::Publisher *p_brake;
-ros::Publisher *p_enabl;
+
 ros::Publisher *p_canbs;
 ros::Publisher *p_curr_speed;
 ros::Publisher *p_curr_angle;
-std::string brake_topic;
-std::string throt_topic;
-std::string steer_topic;
-std::string enabl_topic;
-std::string can_topic;
-std::string current_steer_angle_topic;
-std::string current_speed_topic;
-void ros_send(state car_state)
-{
-    auto msgs = std_msgs::Float64();
-    msgs.data = car_state.steering_torque;
-    p_steer->publish(msgs);
-    auto msgst = std_msgs::Float64();
-    msgst.data = car_state.throttle;
-    p_throt->publish(msgst);
-    auto msgsb = std_msgs::Float64();
-    msgsb.data = car_state.brakes;
-    p_brake->publish(msgsb);
-    auto bmsg = std_msgs::Bool();
-    bmsg.data = car_state.enabled;
-    p_enabl->publish(bmsg);
-}
+
 #endif
 #if COMMANDER
 int channel;
@@ -165,49 +143,34 @@ int main(int argc, char *argv[])
 //
     sigaction(SIGINT, &sig, NULL);
 #if ROS
-    char hostnamePtr[80];
-    char *ptr = hostnamePtr;
-    gethostname(hostnamePtr, 79);
-    while (*ptr != 0)
-    {
-        if (!rosAllowedChar(*ptr))
-            *ptr = '_';
-        ptr++;
-    }
-#if COMMANDER
-    ros::init(argc, argv, std::string(hostnamePtr) + "_drivekit");
+    ros::init(argc, argv, "car_drivekit");
     ros::NodeHandle n;
-    ros::Subscriber sub_steer = n.subscribe("car/steering/torque", 1, steering_callback);
-    ros::Subscriber sub_throt = n.subscribe("car/throttle", 1, throttle_callback);
-    ros::Subscriber sub_brake = n.subscribe("car/brake", 1, brake_callback);
-    ros::Subscriber sub_enabled = n.subscribe("car/enabled", 1, enabled_callback);
-    ros::Publisher pub_canbs = n.advertise<can_msgs::Frame>(can_topic,1);
-    ros::Publisher pub_curr_speed= n.advertise<std_msgs::Float64>(current_speed_topic,1);
-    ros::Publisher pub_curr_angle= n.advertise<std_msgs::Float64>(current_steer_angle_topic,1);
+    ros::Subscriber sub_steer = n.subscribe(CAR_STEERING_TORQUE_TOPIC, 1, steering_callback);
+    ros::Subscriber sub_throt = n.subscribe(CAR_THROTTLE_TOPIC, 1, throttle_callback);
+    ros::Subscriber sub_brake = n.subscribe(CAR_BRAKE_TOPIC, 1, brake_callback);
+    ros::Subscriber sub_enabled = n.subscribe(CAR_ENABLED_TOPIC, 1, enabled_callback);
+    ros::Publisher pub_canbs = n.advertise<can_msgs::Frame>(CAN_TOPIC,1);
+    ros::Publisher pub_curr_speed= n.advertise<std_msgs::Float64>(CAR_SPEED_FEEDBACK_TOPIC,1);
+    ros::Publisher pub_curr_angle= n.advertise<std_msgs::Float64>(CAR_ANGLE_FEEDBACK_TOPIC,1);
     p_canbs = &pub_canbs;
     p_curr_speed =&pub_curr_speed;
     p_curr_angle=&pub_curr_angle;
-#endif
-#if JOYSTICK
-    ros::init(argc, argv, std::string(hostnamePtr) + "_joystick");
-    ros::NodeHandle n;
-    ros::Publisher pub_steep = n.advertise<std_msgs::Float64>(steer_topic, 1);
-    ros::Publisher pub_throt = n.advertise<std_msgs::Float64>(throt_topic, 1);
-    ros::Publisher pub_brake = n.advertise<std_msgs::Float64>(brake_topic, 1);
-    ros::Publisher pub_enabl = n.advertise<std_msgs::Bool>(enabl_topic, 1);
-    
-    p_steer = &pub_steep;
-    p_brake = &pub_brake;
-    p_enabl = &pub_enabl;
-    p_throt = &pub_throt;
-
-#endif
 #endif
 
 #if COMMANDER
     ret = (oscc_result_t)commander_init(channel);
     if (ret == OSCC_OK)
     {
+        #if ROS
+        printf("\nStatus : OK : WAITING FOR ROS TOPICS\n");
+        printf("\tCANBUS   TOPIC   :" CAN_TOPIC"\n");
+        printf("\tFEEDBACK TOPICS  :" CAR_ANGLE_FEEDBACK_TOPIC"\n");
+        printf("\t                  " CAR_SPEED_FEEDBACK_TOPIC"\n");
+        printf("\tCOMMAND TOPICS   :" CAR_BRAKE_TOPIC "\n");
+        printf("\t                  " CAR_THROTTLE_TOPIC"\n");
+        printf("\t                  " CAR_STEERING_TORQUE_TOPIC"\n");
+        printf("\t                  " CAR_ENABLED_TOPIC "\n");
+        #endif
 #endif
 
 #if JOYSTICK
@@ -227,6 +190,9 @@ int main(int argc, char *argv[])
         )
         {
 #if COMMANDER
+#if ROS
+            ros::spinOnce();
+#endif
             elapsed_time = get_elapsed_time(update_timestamp);
 
             if (elapsed_time > COMMANDER_UPDATE_INTERVAL_MICRO)
@@ -235,12 +201,12 @@ int main(int argc, char *argv[])
 #endif
 
 #if JOYSTICK
+                //updates car_state according to joystick
                 ret = (oscc_result_t)check_for_controller_update(car_state);
 #endif
-#if ROS && JOYSTICK
-                ros_send(car_state);
-#endif
+
 #if COMMANDER
+                //publish car_state
                 commander_update(car_state);
             }
 #endif
@@ -336,22 +302,7 @@ void printHelp(std::string str)
 #endif
               << str
 #ifdef COMMANDER
-              << " channel "
-#endif
-#ifdef ROS
-              << " [brake-topic=/car/brake] [throttle-topic=/car/throttle] [steering-topic=/car/steering/torque] [enabled-topic=/car/enabled]"
-#endif
-#if ROS && COMMANDER
-              << " [can-topic=/car/can0]"
-#endif
-              << std::endl
-#ifdef JOYSTICK
-              << "Possible smoothing types:" << std::endl
-              << "    0\t:y=1-(sqrt(a-x^2)) * sign(x)" << std::endl
-              << "    1\t:y=x" << std::endl
-              << "    2\t:y=x^2 *sign(x)" << std::endl
-              << "    3\t:y=x^3 " << std::endl
-              << "  e>3\t:y=x^e (*sign(x) if e is even) " << std::endl
+              << " [channel=0] "
 #endif
               << std::endl;
     exit(0);
@@ -407,32 +358,12 @@ void decodeParameters(int argc, char *argv[])
             previousIsName = false;
         }
     }
-    for (auto it = parameters.begin(), end = parameters.end(); it != end; it++)
-    {
-        std::cout << "GOT PARAMETER " << it->first << " = " << it->second << std::endl;
-    }
-
-    for (auto it = unnamed.begin(), end = unnamed.end(); it != end; it++)
-    {
-        std::cout << "GOT UNNAMED PARAMETER " << *it << std::endl;
-    }
-
+  
     int idx = 0;
     std::vector<std::string> empty;
     int i_empty = 0;
 #if COMMANDER
     channel = getValueForParameterInt("-c", unnamed, parameters, idx, 0, false);
     channel = getValueForParameterInt("-channel", unnamed, parameters, idx, channel, false);
-#endif
-#if JOYSTICK && ROS
-    brake_topic = getValueForParameterString("-brake-topic", empty, parameters, i_empty, "/car/brake", false);
-    throt_topic = getValueForParameterString("-throttle-topic", empty, parameters, i_empty, "/car/speed/desired", false);
-    steer_topic = getValueForParameterString("-steering-topic", empty, parameters, i_empty, "/car/steering/angle/desired", false);
-    enabl_topic = getValueForParameterString("-enabled-topic", empty, parameters, i_empty, "/car/enabled", false);
-    can_topic = getValueForParameterString("-can-topic", empty, parameters, i_empty, "/car/can0", false);
-#endif
-#if COMMANDER && ROS
-    current_steer_angle_topic = getValueForParameterString("-current-steer-angle-topic", empty, parameters, i_empty, "/car/steering/angle/actual", false);
-    current_speed_topic = getValueForParameterString("-current-speed-topic", empty, parameters, i_empty, "/car/speed/actual", false);
 #endif
 }
