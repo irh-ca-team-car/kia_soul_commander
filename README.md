@@ -125,6 +125,20 @@ The vehicle will only respond to commands if control is enabled with the start b
 
 The commander files contain the joystick commander's interactivity with the OSCC API. It demonstrates opening and closing the CAN channel communications with OSCC's control CAN network, sending enable/disable commands to the modules through the API, retrieving OSCC reports through callback functions, and sending commands through the OSCC `publish` functions.
 
+# ROS
+
+The current project references ros melodic in an non-standard way. The canbus is published under the can_msgs/Frame found in https://github.com/ros-industrial/ros_canopen. 
+
+| topic_type        | topic_name                | direction |
+| ----------------- | ------------------------- | --------- |
+| std_msgs::Float64 | car/steering/torque       | Input     |
+| std_msgs::Float64 | car/throttle              | Input     |
+| std_msgs::Float64 | car/brake                 | Input     |
+| std_msgs::Bool    | car/enabled               | Input     |
+| can_msgs::Frame   | car/can0                  | Output    |
+| std_msgs::Float64 | car/speed/actual          | Output    |
+| std_msgs::Float64 | car/steering/angle/actual | Output    |
+
 # Using OSCC API
 
 To use the OSCC API in your applications, you need to include any relevant header files.
