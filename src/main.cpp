@@ -146,11 +146,16 @@ int main(int argc, char *argv[])
 
 #if COMMANDER
     char m[150];
-    const char *str = "ip link set can%d type can bitrate 500000\n";
-    sprintf(m, str, channel);
+    sprintf(m, "ifconfig can%d down\n", channel);
+    system(m);
+
+    sprintf(m, "ip link set can%d type can bitrate 500000\n", channel);
     system(m);
 
     sprintf(m, "ip link set up can%d\n", channel);
+    system(m);
+
+    sprintf(m, "ifconfig can%d up\n", channel);
     system(m);
     unsigned long long update_timestamp = get_timestamp_micro();
     unsigned long long elapsed_time = 0;

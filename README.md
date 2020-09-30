@@ -79,6 +79,7 @@ For example, to configure `cmake` to build a platform-specific Makefile for the 
 
 ```sh
 $ cmake -DVEHICLE=kia_soul_ev ..
+$ make
 ```
 
 Note: You may also choose to add the flag -DDEBUG=ON to enable debug messaging, serial console, etc. This should not be used for production builds.
