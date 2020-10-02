@@ -21,7 +21,10 @@
 #include "can_protocols/fault_can_protocol.h"
 
 #ifdef ROS
-#include "node.h"
+#include "ros/ros.h"
+#include "std_msgs/Float64.h"
+#include "std_msgs/Bool.h"
+#include "can_msgs.h"
 #endif
 
 #define STEERING_RANGE_PERCENTAGE (0.36)
@@ -50,6 +53,8 @@ static bool control_enabled = false;
 
 static double curr_angle;
 
+static int get_normalized_position(unsigned long axis_index, double *const normalized_position, int e, double f);
+static int check_trigger_positions();
 static int commander_disable_controls();
 static int commander_enable_controls();
 static void brake_callback(oscc_brake_report_s *report);
@@ -57,7 +62,9 @@ static void throttle_callback(oscc_throttle_report_s *report);
 static void steering_callback(oscc_steering_report_s *report);
 static void fault_callback(oscc_fault_report_s *report);
 static void obd_callback(struct can_frame *frame);
-
+static double calc_exponential_average(double average,
+                                       double setpoint,
+                                       double factor);
 state previous;
 
 int commander_init(int channel)
@@ -198,6 +205,10 @@ static void fault_callback(oscc_fault_report_s *report)
         printf("Throttle\n");
     }
 }
+#if ROS
+extern ros::Publisher *p_curr_angle;
+extern ros::Publisher *p_curr_speed;
+#endif
 // To cast specific OBD messages, you need to know the structure of the
 // data fields and the CAN_ID.
 static void obd_callback(struct can_frame *frame)
@@ -208,7 +219,12 @@ static void obd_callback(struct can_frame *frame)
 
         curr_angle = steering_data->steering_wheel_angle * KIA_SOUL_OBD_STEERING_ANGLE_SCALAR;
 
-        DrivekitNode::publishAngle(curr_angle);
+        #if ROS
+        auto msgst = std_msgs::Float64();
+        msgst.data = curr_angle;
+        p_curr_angle->publish(msgst);
+
+        #endif
     }
     if(frame->can_id == KIA_SOUL_OBD_WHEEL_SPEED_CAN_ID)
     {
@@ -217,7 +233,12 @@ static void obd_callback(struct can_frame *frame)
         // 10^-1 precision, raw / 32.0
         double wheel_speed = (double)((int)((double)raw / 3.2) / 10.0);
         
-        DrivekitNode::publishSpeed(wheel_speed);
+        #if ROS
+        auto msgst = std_msgs::Float64();
+        msgst.data = wheel_speed;
+        p_curr_speed->publish(msgst);
+
+        #endif
     }
 }
 

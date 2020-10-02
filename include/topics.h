@@ -1,7 +1,0 @@
-#define CAN_TOPIC "car/can0"
-#define CAR_ENABLED_TOPIC "car/enabled"
-#define CAR_BRAKE_TOPIC "car/brake"
-#define CAR_THROTTLE_TOPIC "car/throttle"
-#define CAR_STEERING_TORQUE_TOPIC "car/steering/torque"
-#define CAR_SPEED_FEEDBACK_TOPIC "car/speed/actual"
-#define CAR_ANGLE_FEEDBACK_TOPIC "car/steering/angle/actual"

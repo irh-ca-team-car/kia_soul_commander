@@ -1,78 +1,80 @@
-cmake_minimum_required(VERSION 3.5)
-project(drivekit)
+cmake_minimum_required(VERSION 2.8)
+project(oscc-joystick-commander)
 
-# Default to C99
-if(NOT CMAKE_C_STANDARD)
-  set(CMAKE_C_STANDARD 99)
-endif()
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(SDL2 REQUIRED sdl2)
 
-# Default to C++14
-if(NOT CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 14)
-  set(CMAKE_CXX_STANDARD_REQUIRED True)
-endif()
-
-if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  add_compile_options(-Wall -Wextra -Wpedantic)
-endif()
-
-set(DVEHICLE kia_soul_ev)
-set(VEHICLE kia_soul_ev)
 include(oscc/api/OsccConfig.cmake)
 
-# find dependencies
-find_package(ament_cmake REQUIRED)
-find_package(rclcpp REQUIRED)
-find_package(std_msgs REQUIRED)
-find_package(can_msgs REQUIRED)
-# uncomment the following section in order to fill in
-# further dependencies manually.
-# find_package(<dependency> REQUIRED)
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 set(my_includes 
     include
     oscc/api/include
-    oscc/api/src)
+    oscc/api/src
+    ${SDL2_INCLUDE_DIRS}
+    /opt/ros/melodic/include)
 
 add_executable(
-    drivekit
+    oscc-joystick-commander
+    src/commander.cpp
+    src/joystick.cpp
+    src/main.cpp
+    src/oscc.cpp)
+
+
+add_executable(
+    oscc-ros-commander
     src/commander.cpp
     src/main.cpp
-    src/node.cpp
     src/oscc.cpp)
 
 add_executable(
-    servitude
+    steering-servitude
     src/steering-servitude.cpp)
 
-target_include_directories(drivekit PUBLIC
-  ${my_includes}
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>)
-target_include_directories(servitude PUBLIC
-  ${my_includes}
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>)
+target_include_directories(
+    oscc-joystick-commander
+    PRIVATE
+    ${my_includes})
 
-target_compile_definitions(drivekit PRIVATE COMMANDER ROS)
+target_link_libraries(
+    oscc-joystick-commander
+    PRIVATE
+    ${SDL2_LIBRARIES}
+	m
+)
 
-ament_target_dependencies(drivekit rclcpp std_msgs can_msgs)
-ament_target_dependencies(servitude rclcpp std_msgs)
+target_include_directories(
+    oscc-ros-commander
+    PRIVATE
+    ${my_includes})
 
-install(TARGETS drivekit
-  DESTINATION lib/${PROJECT_NAME})
-install(TARGETS servitude
-  DESTINATION lib/${PROJECT_NAME})
+target_link_libraries(
+    oscc-ros-commander
+    PRIVATE
+    /opt/ros/melodic/lib/libroscpp.so
+    /opt/ros/melodic/lib/librosconsole.so
+    /opt/ros/melodic/lib/libroscpp_serialization.so
+    /opt/ros/melodic/lib/libroslib.so
+    /opt/ros/melodic/lib/libxmlrpcpp.so)
 
-if(BUILD_TESTING)
-  find_package(ament_lint_auto REQUIRED)
-  # the following line skips the linter which checks for copyrights
-  # uncomment the line when a copyright and license is not present in all source files
-  #set(ament_cmake_copyright_FOUND TRUE)
-  # the following line skips cpplint (only works in a git repo)
-  # uncomment the line when this package is not in a git repo
-  #set(ament_cmake_cpplint_FOUND TRUE)
-  ament_lint_auto_find_test_dependencies()
-endif()
+target_include_directories(
+    steering-servitude
+    PRIVATE
+    ${my_includes})
 
-ament_package()
+target_link_libraries(
+    steering-servitude
+    PRIVATE
+	m
+    /opt/ros/melodic/lib/libroscpp.so
+    /opt/ros/melodic/lib/librosconsole.so
+    /opt/ros/melodic/lib/libroscpp_serialization.so
+    /opt/ros/melodic/lib/libroslib.so
+    /opt/ros/melodic/lib/libxmlrpcpp.so
+    /opt/ros/melodic/lib/librostime.so)
+
+target_compile_definitions(oscc-joystick-commander PRIVATE JOYSTICK COMMANDER)
+target_compile_definitions(oscc-ros-commander PRIVATE COMMANDER ROS)

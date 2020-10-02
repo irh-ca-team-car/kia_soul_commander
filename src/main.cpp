@@ -17,14 +17,25 @@
 #include "commander.h"
 #include "can_protocols/steering_can_protocol.h"
 #endif
-#include "node.h"
+#ifdef ROS
+#include "ros/ros.h"
+#include "std_msgs/Float64.h"
+#include "std_msgs/Bool.h"
+#include "can_msgs.h"
+#endif
 #ifdef JOYSTICK
 #include "joystick.h"
 #endif
 #define COMMANDER_UPDATE_INTERVAL_MICRO (5000)
 #define SLEEP_TICK_INTERVAL_MICRO (1000)
 
-
+#define CAN_TOPIC "car/can0"
+#define CAR_ENABLED_TOPIC "car/enabled"
+#define CAR_BRAKE_TOPIC "car/brake"
+#define CAR_THROTTLE_TOPIC "car/throttle"
+#define CAR_STEERING_TORQUE_TOPIC "car/steering/torque"
+#define CAR_SPEED_FEEDBACK_TOPIC "car/speed/actual"
+#define CAR_ANGLE_FEEDBACK_TOPIC "car/steering/angle/actual"
 
 state car_state;
 
@@ -55,7 +66,7 @@ void signal_handler(int signal_number)
     }
 }
 
-#if ROS1
+#if ROS
 //for ros-commander
 void steering_callback(const std_msgs::Float64::ConstPtr &msg)
 {
@@ -95,7 +106,7 @@ void decodeParameters(int argc, char *argv[]);
 int main(int argc, char *argv[])
 {
     printf("V%d.%d.%d: COMPILED WITH [", MAJOR, MINOR, RELEASE);
-#if ROS1
+#if ROS
     printf(" ROS ");
 #endif
 #if JOYSTICK
@@ -131,7 +142,7 @@ int main(int argc, char *argv[])
     sig.sa_handler = signal_handler;
 //
     sigaction(SIGINT, &sig, NULL);
-#if ROS1
+#if ROS
     ros::init(argc, argv, "car_drivekit");
     ros::NodeHandle n;
     ros::Subscriber sub_steer = n.subscribe(CAR_STEERING_TORQUE_TOPIC, 1, steering_callback);
@@ -150,7 +161,7 @@ int main(int argc, char *argv[])
     ret = (oscc_result_t)commander_init(channel);
     if (ret == OSCC_OK)
     {
-        #if ROS1
+        #if ROS
         printf("\nStatus : OK : WAITING FOR ROS TOPICS\n");
         printf("\tCANBUS   TOPIC   :" CAN_TOPIC"\n");
         printf("\tFEEDBACK TOPICS  :" CAR_ANGLE_FEEDBACK_TOPIC"\n");
@@ -173,13 +184,13 @@ int main(int argc, char *argv[])
 #endif
 
         while (ret == OSCC_OK && error_thrown == OSCC_OK
-#if ROS1
+#if ROS
                && ros::ok()
 #endif
         )
         {
 #if COMMANDER
-#if ROS1
+#if ROS
             ros::spinOnce();
 #endif
             elapsed_time = get_elapsed_time(update_timestamp);
@@ -231,7 +242,7 @@ std::string getValueForParameter(std::string name, std::vector<std::string> unna
 {
     if (!named[name].empty())
         return named.at(name);
-    if (idx < (int)unnamed.size())
+    if (idx < unnamed.size())
     {
         auto ret = unnamed[idx];
         idx++;
@@ -262,7 +273,6 @@ int asInt(std::string name, std::string val, int def, bool mandatory)
     {
         ret = atoi(val.c_str());
     }
-    return ret;
 }
 double asDouble(std::string name, std::string val, double def, bool mandatory)
 {
@@ -283,7 +293,6 @@ double asDouble(std::string name, std::string val, double def, bool mandatory)
     {
         ret = atof(val.c_str());
     }
-    return ret;
 }
 void printHelp(std::string str)
 {
@@ -311,9 +320,6 @@ std::string getValueForParameterString(std::string name, std::vector<std::string
     std::string tmp = getValueForParameter(name, unnamed, named, idx);
     if (tmp.empty())
         return def;
-    else if(mandatory)
-        throw "ERROR";
-    return "";
 }
 void decodeParameters(int argc, char *argv[])
 {
@@ -355,6 +361,7 @@ void decodeParameters(int argc, char *argv[])
   
     int idx = 0;
     std::vector<std::string> empty;
+    int i_empty = 0;
 #if COMMANDER
     channel = getValueForParameterInt("-c", unnamed, parameters, idx, 0, false);
     channel = getValueForParameterInt("-channel", unnamed, parameters, idx, channel, false);
