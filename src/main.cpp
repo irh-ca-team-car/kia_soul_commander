@@ -13,97 +13,17 @@
 #include <unistd.h>
 #include "compile.h"
 
-#ifdef COMMANDER
 #include "commander.h"
 #include "can_protocols/steering_can_protocol.h"
-#endif
 #include "node.h"
-#ifdef JOYSTICK
-#include "joystick.h"
-#endif
-#define COMMANDER_UPDATE_INTERVAL_MICRO (5000)
-#define SLEEP_TICK_INTERVAL_MICRO (1000)
 
-
-
-state car_state;
-
-static int error_thrown = OSCC_OK;
-
-static unsigned long long get_timestamp_micro()
-{
-    struct timeval time;
-
-    gettimeofday(&time, NULL);
-
-    return (time.tv_usec);
-}
-
-static unsigned long long get_elapsed_time(unsigned long long timestamp)
-{
-    unsigned long long now = get_timestamp_micro();
-    unsigned long long elapsed_time = now - timestamp;
-
-    return elapsed_time;
-}
-
-void signal_handler(int signal_number)
-{
-    if (signal_number == SIGINT)
-    {
-        error_thrown = OSCC_ERROR;
-    }
-}
-
-#if ROS1
-//for ros-commander
-void steering_callback(const std_msgs::Float64::ConstPtr &msg)
-{
-    double d = msg->data;
-    car_state.steering_torque = d;
-}
-void throttle_callback(const std_msgs::Float64::ConstPtr &msg)
-{
-    double d = msg->data;
-    car_state.throttle = d;
-}
-void brake_callback(const std_msgs::Float64::ConstPtr &msg)
-{
-    double d = msg->data;
-    car_state.brakes = d;
-}
-void enabled_callback(const std_msgs::Bool::ConstPtr &msg)
-{
-    bool d = msg->data;
-    std::cout << "ROS:car/enabled::" << d<<std::endl;
-    if(car_state.enabled!=d)
-    {
-        std::cout <<  "DRIVEKIT STATE CHANGED TO "<<d<<std::endl;
-    }
-    car_state.enabled = d;
-}
-
-ros::Publisher *p_canbs;
-ros::Publisher *p_curr_speed;
-ros::Publisher *p_curr_angle;
-
-#endif
-#if COMMANDER
 int channel;
-#endif
 void decodeParameters(int argc, char *argv[]);
 int main(int argc, char *argv[])
 {
     printf("V%d.%d.%d: COMPILED WITH [", MAJOR, MINOR, RELEASE);
-#if ROS1
-    printf(" ROS ");
-#endif
-#if JOYSTICK
-    printf(" JOYSTICK ");
-#endif
-#if COMMANDER
-    printf(" COMMANDER ");
-#endif
+    printf(" ROS2 ");
+    printf(" DRIVEKIT ");
     printf("]\r\n");
 
     errno = 0;
@@ -111,7 +31,6 @@ int main(int argc, char *argv[])
     decodeParameters(argc, argv);
     oscc_result_t ret = OSCC_OK;
 
-#if COMMANDER
     char m[150];
     sprintf(m, "ifconfig can%d down\n", channel);
     system(m);
@@ -124,33 +43,10 @@ int main(int argc, char *argv[])
 
     sprintf(m, "ifconfig can%d up\n", channel);
     system(m);
-    unsigned long long update_timestamp = get_timestamp_micro();
-    unsigned long long elapsed_time = 0;
-#endif
-    struct sigaction sig;
-    sig.sa_handler = signal_handler;
-//
-    sigaction(SIGINT, &sig, NULL);
-#if ROS1
-    ros::init(argc, argv, "car_drivekit");
-    ros::NodeHandle n;
-    ros::Subscriber sub_steer = n.subscribe(CAR_STEERING_TORQUE_TOPIC, 1, steering_callback);
-    ros::Subscriber sub_throt = n.subscribe(CAR_THROTTLE_TOPIC, 1, throttle_callback);
-    ros::Subscriber sub_brake = n.subscribe(CAR_BRAKE_TOPIC, 1, brake_callback);
-    ros::Subscriber sub_enabled = n.subscribe(CAR_ENABLED_TOPIC, 1, enabled_callback);
-    ros::Publisher pub_canbs = n.advertise<can_msgs::Frame>(CAN_TOPIC,1);
-    ros::Publisher pub_curr_speed= n.advertise<std_msgs::Float64>(CAR_SPEED_FEEDBACK_TOPIC,1);
-    ros::Publisher pub_curr_angle= n.advertise<std_msgs::Float64>(CAR_ANGLE_FEEDBACK_TOPIC,1);
-    p_canbs = &pub_canbs;
-    p_curr_speed =&pub_curr_speed;
-    p_curr_angle=&pub_curr_angle;
-#endif
 
-#if COMMANDER
     ret = (oscc_result_t)commander_init(channel);
     if (ret == OSCC_OK)
     {
-        #if ROS1
         printf("\nStatus : OK : WAITING FOR ROS TOPICS\n");
         printf("\tCANBUS   TOPIC   :" CAN_TOPIC"\n");
         printf("\tFEEDBACK TOPICS  :" CAR_ANGLE_FEEDBACK_TOPIC"\n");
@@ -159,56 +55,13 @@ int main(int argc, char *argv[])
         printf("\t                  " CAR_THROTTLE_TOPIC"\n");
         printf("\t                  " CAR_STEERING_TORQUE_TOPIC"\n");
         printf("\t                  " CAR_ENABLED_TOPIC "\n");
-        #endif
-#endif
 
-#if JOYSTICK
-        printf("\nControl Ready:\n");
-        printf("    START - Enable controls\n");
-        printf("    BACK - Disable controls\n");
-        printf("    LEFT TRIGGER - Brake\n");
-        printf("    RIGHT TRIGGER - Throttle\n");
-        printf("    LEFT STICK - Steering\n");
-        joystick_init();
-#endif
-
-        while (ret == OSCC_OK && error_thrown == OSCC_OK
-#if ROS1
-               && ros::ok()
-#endif
-        )
-        {
-#if COMMANDER
-#if ROS1
-            ros::spinOnce();
-#endif
-            elapsed_time = get_elapsed_time(update_timestamp);
-
-            if (elapsed_time > COMMANDER_UPDATE_INTERVAL_MICRO)
-            {
-                update_timestamp =- get_timestamp_micro();
-#endif
-
-#if JOYSTICK
-                //updates car_state according to joystick
-                ret = (oscc_result_t)check_for_controller_update(car_state);
-#endif
-
-#if COMMANDER
-                //publish car_state
-                commander_update(car_state);
-            }
-#endif
-            // Delay 1 ms to avoid loading the CPU
-            (void)usleep(SLEEP_TICK_INTERVAL_MICRO);
-        }
-#if COMMANDER
+        rclcpp::init(argc, argv);
+        rclcpp::spin(std::make_shared<DrivekitNode>());
+        rclcpp::shutdown();
+           
         commander_close(channel);
     }
-#endif
-#if JOYSTICK
-    joystick_close();
-#endif
     return 0;
 }
 bool isInteger(std::string line)
@@ -285,19 +138,6 @@ double asDouble(std::string name, std::string val, double def, bool mandatory)
     }
     return ret;
 }
-void printHelp(std::string str)
-{
-    std::cout << "usage : "
-#ifdef COMMANDER
-              << "sudo "
-#endif
-              << str
-#ifdef COMMANDER
-              << " [channel=0] "
-#endif
-              << std::endl;
-    exit(0);
-}
 int getValueForParameterInt(std::string name, std::vector<std::string> unnamed, std::map<std::string, std::string> named, int &idx, int def, bool mandatory)
 {
     return asInt(name, getValueForParameter(name, unnamed, named, idx), def, mandatory);
@@ -333,8 +173,6 @@ void decodeParameters(int argc, char *argv[])
             foundNamed = true;
             previousIsName = true;
             previous = argv[i];
-            if (previous == "-help")
-                printHelp(argv[0]);
             if (i == argc - 1)
                 parameters[previous] = "<exists>";
         }
@@ -355,8 +193,6 @@ void decodeParameters(int argc, char *argv[])
   
     int idx = 0;
     std::vector<std::string> empty;
-#if COMMANDER
     channel = getValueForParameterInt("-c", unnamed, parameters, idx, 0, false);
     channel = getValueForParameterInt("-channel", unnamed, parameters, idx, channel, false);
-#endif
 }

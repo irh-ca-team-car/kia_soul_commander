@@ -1,5 +1,5 @@
 #include "node.h"
-
+#include "commander.h"
 void DrivekitNode::steering_callback(const std_msgs::msg::Float64::SharedPtr msg) const
 {
     double d = msg->data;
@@ -24,6 +24,11 @@ void DrivekitNode::enabled_callback(const std_msgs::msg::Bool::SharedPtr msg) co
         std::cout <<  "DRIVEKIT STATE CHANGED TO "<<d<<std::endl;
     }
     DrivekitNode::car_state.enabled = d;
+}
+
+void DrivekitNode::timer_callback()
+{
+    commander_update(car_state);
 }
 state DrivekitNode::car_state;
 DrivekitNode* DrivekitNode::instance;

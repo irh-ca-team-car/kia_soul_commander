@@ -54,7 +54,7 @@ target_include_directories(servitude PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 
-target_compile_definitions(drivekit PRIVATE COMMANDER ROS)
+target_compile_definitions(drivekit PRIVATE COMMANDER ROS ROS2)
 
 ament_target_dependencies(drivekit rclcpp std_msgs can_msgs)
 ament_target_dependencies(servitude rclcpp std_msgs)

@@ -20,9 +20,7 @@
 #include "can_protocols/throttle_can_protocol.h"
 #include "can_protocols/fault_can_protocol.h"
 
-#ifdef ROS
 #include "node.h"
-#endif
 
 #define STEERING_RANGE_PERCENTAGE (0.36)
 

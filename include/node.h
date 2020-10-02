@@ -30,6 +30,9 @@ public:
        sub_enabled = this->create_subscription<std_msgs::msg::Bool>(
       CAR_ENABLED_TOPIC, 10, std::bind(&DrivekitNode::enabled_callback, this, _1));
       instance=this;
+
+      timer_ = this->create_wall_timer(
+      1ms, std::bind(&DrivekitNode::timer_callback, this));
     }
     
     static void publishCan(can_msgs::msg::Frame msg)
@@ -53,7 +56,8 @@ private:
     void throttle_callback (const std_msgs::msg::Float64::SharedPtr msg) const;
     void brake_callback (const std_msgs::msg::Float64::SharedPtr msg) const;
     void enabled_callback (const std_msgs::msg::Bool::SharedPtr msg) const;
-    
+    void timer_callback();
+    rclcpp::TimerBase::SharedPtr timer_;
     rclcpp::Publisher<can_msgs::msg::Frame>::SharedPtr pub_canbs;
     rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr pub_curr_speed;
     rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr pub_curr_angle;

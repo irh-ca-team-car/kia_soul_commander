@@ -7,11 +7,8 @@
 
 #ifndef COMMANDER
 #ifndef ROS
-#ifndef JOYSTICK
 #define COMMANDER true
 #define ROS true
-#define JOYSTICK true
-#endif
 #endif
 #endif
 
