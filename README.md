@@ -1,129 +1,81 @@
 <img src="https://raw.githubusercontent.com/wiki/PolySync/OSCC/images/oscc_logo_title.png">
 
-# Joystick Commander [ ROS FORK ] 
+# Kia soul commander [ ROS DASHING ] 
 
 ## Overview
 
-Joystick commander is an application designed to show how the Open Source Car Control API can be used to receive reports from and send commands to a drive by-wire enabled vehicle using ROS.
+Kia soul commander is an application designed to show how the Open Source Car Control API can be used to receive reports from and send commands to a drive by-wire enabled vehicle using ROS.
 
-Using an SDL2 supported game controller, inputs are normalized and converted to relative torque, throttle, and brake commands. This application also demonstrates registering callback functions to recieve and parse OSCC reports as well as vehicle state reports from the car's OBD-II CAN network.
+This application also demonstrates registering callback functions to recieve and parse OSCC reports as well as vehicle state reports from the car's OBD-II CAN network.
 
-For more information about OSCC, check out our [github](https://github.com/PolySync/oscc).
+For more information about OSCC, check out PolySync OSCC on [github](https://github.com/PolySync/oscc).
 
 
 ## Getting Started
 
-These instructions have been tested with a new Ubuntu 18.04 installation.
+These instructions have been tested with a new Ubuntu 18.04 installation with ROS Dashing.
 
 - OSCC's API and firmware modules are both required, and the modules must be installed on the vehicle
 - The socketcan driver for USB and PCIe CAN interfaces is required, and is pre-installed on most Linux systems
-- An SDL2 supported game controller is also required, and the SDL2 library must be pre-installed
 - A CAN interface adapter, such as the [Kvaser Leaf Light](https://www.kvaser.com), is also necessary in order to connect the API to the OSCC control CAN network via USB
 
-This application has been tested with a Logitech F310 gamepad and a wired Xbox 360 controller, but should work with any SDL2 supported game controller. Controllers with rumble capabilities will provide feedback when OSCC is enabled or disabled.
-
-[Xbox 360 Wired Controller](https://www.amazon.com/dp/B004QRKWLA)
-
-[Logitech Gamepad F310](http://a.co/3GoUlkN)
-
-
-### 1. Install Dependencies
-
-You will need several packages installed on your machine in order to build the oscc-joystick-commander application. Use the following command to install them using `apt`:
-
-```sh
-sudo apt install git cmake libsdl2-dev
-```
-
-### 2. Set up this repository locally
+### 1. Set up this repository locally
 
 Clone this repository to your machine, if you have not already done so:
 
 ```sh
 # clone the repository
-$ git clone git@github.com:irh-ca-team-car/oscc-joystick-commander.git
-
-
-# change the current directory to the repository
-$ cd oscc-joystick-commander
+$ git clone git@github.com:irh-ca-team-car/oscc-commander.git
 ```
-
-Note: If you do not have a github account you will need to clone the repository using HTTPS.
+Note: If you do not have a SSH key on your github account you will need to clone the repository using HTTPS.
 
 Then, from within that directory, sync and initialize Git submodules:
 
 ```sh
+$ cd oscc-commander
 $ git submodule sync
 $ git submodule update --init --recursive
 ```
 
-## Building Joystick Commander
+## Building Kia soul Commander
 
 ### 1. CMake Configuration
 
-Before you can build the oscc-joystick-commander application, you must use cmake to configure the project. From within the oscc-joystick-commander repository on your machine:
+In order to build the oscc-commander application, you must use colcon. Place the directory inside a Colcon workspace
 
 ```sh
-# create a build directory that will act as our workspace, and cd to it
-$ mkdir build/
-$ cd build/
+$ colcon build
+$ source install/setup.bash
 ```
-
-From there, you will run `cmake` to build a platform-specific Makefile. `cmake` will require some arguments, including the vehicle that the firmware is being built for. You can get a list of supported vehicles using the following command:
-
-```sh
-$ cmake -LA .. 2>/dev/null | grep 'VEHICLE_VALUES'
-```
-
-For example, to configure `cmake` to build a platform-specific Makefile for the Kia Niro, you would use the following command (from within the `build/` directory you created):
-
-```sh
-$ cmake -DVEHICLE=kia_soul_ev ..
-$ make
-```
-
-Note: You may also choose to add the flag -DDEBUG=ON to enable debug messaging, serial console, etc. This should not be used for production builds.
 
 ### CAN interface
 
-You would then run any of the following:
+You would then run the following:
 
 ```sh
-sudo ./oscc-joystick-commander [channel=0]
-#this one must be run as root, not sudo
+#Root is important because the node change the can interface speed
 su root
-./oscc-ros-commander [channel=0]
-```
-
-For more information about the parameters:
-
-```sh
-./oscc-joystick-commander -help
-./oscc-ros-commander -help
+source /opt/ros/dashing/setup.bash
+ros2 run kia_soul_control drivekit [channel=0]
 ```
 
 For more information on setting up a socketcan interface, check out [this guide](http://elinux.org/Bringing_CAN_interface_up).
 
 # Application Details
 
-## Controlling the Vehicle with the Joystick Gamepad
+## Controlling the Vehicle with ROS
 
-Once the joystick commander is up and running you can use it to send commands to DriveKit.
-Use the left trigger to brake, the right trigger for throttle, and the left gamepad axis to control steering.
-
-The vehicle will only respond to commands if control is enabled with the start button. The back button disables control.
+Once the kia soul commander is up and running you can use it to send commands to DriveKit via ROS topics.
 
 ### main
 
-`main.cpp` is the entry point of oscc commander. Initializes OSCC interface, checks for controller updates in 5 ms intervals for `oscc-joystick-commander` or ros topics ros for `oscc-ros-commander`, and closes the interface when the program terminates. This contains the applications main loop. Initializes the ros node for `oscc-ros-commander`
-
-### joystick
-
-`joystick.cpp` contains the functionality necessary to initialize and interact with the game controller.
+`main.cpp` is the entry point of oscc commander. Initializes OSCC interface, checks for ros topics updates every millisecond, and closes the interface when the program terminates. This contains the applications main loop.
 
 ### commander
 
 `commander.cpp` The commander files contain the joystick commander's interactivity with the OSCC API. It demonstrates opening and closing the CAN channel communications with OSCC's control CAN network, sending enable/disable commands to the modules through the API, retrieving OSCC reports through callback functions, and sending commands through the OSCC `publish` functions.
+
+`node.cpp` is the ROS2 node containing the commander update implementation.
 
 `oscc.cpp` is a C++ version os `oscc.c` in the submodule oscc
 
@@ -131,15 +83,15 @@ The vehicle will only respond to commands if control is enabled with the start b
 
 The current project references ros melodic in an non-standard way. The canbus is published under the can_msgs/Frame found in https://github.com/ros-industrial/ros_canopen. 
 
-| topic_type        | topic_name                | direction |
-| ----------------- | ------------------------- | --------- |
-| std_msgs::Float64 | car/steering/torque       | Input     |
-| std_msgs::Float64 | car/throttle              | Input     |
-| std_msgs::Float64 | car/brake                 | Input     |
-| std_msgs::Bool    | car/enabled               | Input     |
-| can_msgs::Frame   | car/can0                  | Output    |
-| std_msgs::Float64 | car/speed/actual          | Output    |
-| std_msgs::Float64 | car/steering/angle/actual | Output    |
+| topic_type             | topic_name                | direction |
+| ---------------------- | ------------------------- | --------- |
+| std_msgs::msg::Float64 | car/steering/torque       | Input     |
+| std_msgs::msg::Float64 | car/throttle              | Input     |
+| std_msgs::msg::Float64 | car/brake                 | Input     |
+| std_msgs::msg::Bool    | car/enabled               | Input     |
+| can_msgs::msg::Frame   | car/can0                  | Output    |
+| std_msgs::msg::Float64 | car/speed/actual          | Output    |
+| std_msgs::msg::Float64 | car/steering/angle/actual | Output    |
 
 # Using OSCC API
 
@@ -148,7 +100,7 @@ To use the OSCC API in your applications, you need to include any relevant heade
 * The can message protocols are located in `oscc/api/include/can_protocols/`
     * These specify the structs we use for steering, throttle, brake, and fault reports
 * Vehicle specific macros and values are located in `oscc/api/include/vehicles/`
-	* You only need to include `vehicles.h`, which will include the relevant vehicle-specific header depending on the option provided to CMake (e.g., `-DVEHICLE=kia_niro` will include `kia_niro.h`)
+	* You only need to include `vehicles.h`, which will include the relevant vehicle-specific header depending on the option provided to CMake (e.g., `-DVEHICLE=kia_soul_ev` will include `kia_soul_ev.h`)
 * `oscc/api/include/oscc.h` includes the functionality to interface with the OSCC API
 
 
@@ -156,7 +108,7 @@ To use the OSCC API in your applications, you need to include any relevant heade
 
 MIT License
 
-Copyright (c) 2017 PolySync Technologies
+Copyright (c) 2020 PolySync Technologies
 
 Please see [LICENSE.md](LICENSE.md) for more details.
 
@@ -167,4 +119,4 @@ Please direct questions regarding OSCC and/or licensing to help@polysync.io.
 
 *Distributed as-is; no warranty is given.*
 
-Copyright (c) 2019 PolySync Technologies, Inc.  All Rights Reserved.
+Copyright (c) 2020 PolySync Technologies, Inc.  All Rights Reserved.
