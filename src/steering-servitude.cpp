@@ -10,10 +10,16 @@
 #include <vector>
 #include <iostream>
 #include <unistd.h>
-#include "ros/ros.h"
-#include "std_msgs/Float64.h"
-#include "std_msgs/Bool.h"
-#include "can_msgs.h"
+#include <chrono>
+#include <functional>
+#include <memory>
+#include <string>
+#include "rclcpp/rclcpp.hpp"
+#include "std_msgs/msg/float64.hpp"
+
+using namespace std::chrono_literals;
+using std::placeholders::_1;
+
 const double KIA_SOUL_ACCELERATION = 4.34; // m/s2
 const double MAX_ACCELARATION = 1.0; // m/s2
 const double MAX_DECELARATION = 1.0; // m/s2
@@ -23,82 +29,50 @@ const double STEERING_KP = 0.125, STEERING_KI = 0, STEERING_KD = 0, STEERING_DIV
 const int N=20;
 
 double steering = 0, speed = 0, steering_actual = 0, speed_actual = 0;
-ros::Publisher pub_torque;
-ros::Publisher pub_acceleration;
-ros::Publisher pub_brake;
 
-void steering_callback(const std_msgs::Float64::ConstPtr &msg)
-{
-    steering= msg->data;
-    //printf("%s",__func__);
-    
-}
-void speed_callback(const std_msgs::Float64::ConstPtr &msg)
-{
-    speed = msg->data;
-    //printf("%s",__func__);
-}
-void steering_actual_callback(const std_msgs::Float64::ConstPtr &msg)
-{
-   steering_actual = msg->data;
-   //printf("%s",__func__);
-}
-void speed_actual_callback(const std_msgs::Float64::ConstPtr &msg)
-{
-    speed_actual = msg->data;
-    //printf("%s",__func__);
-}
-bool rosAllowedChar(char c)
-{
-    if (c >= 'a' && c <= 'z')
-        return true;
-    if (c >= 'A' && c <= 'Z')
-        return true;
-    if (c >= '0' && c <= '9')
-        return true;
-    return false;
-}
-
-int main(int argc, char *argv[])
-{
-
-    char hostnamePtr[80];
-    char *ptr = hostnamePtr;
-    gethostname(hostnamePtr, 79);
-    while (*ptr != 0)
+class Serviture : public rclcpp::Node{
+    public:
+    Serviture()
+    : Node("car_servitude")
     {
-        if (!rosAllowedChar(*ptr))
-            *ptr = '_';
-        ptr++;
+        pub_torque = this->create_publisher<std_msgs::msg::Float64>("car/steering/torque", 10);
+        pub_acceleration = this->create_publisher<std_msgs::msg::Float64>("car/throttle", 10);
+        pub_brake = this->create_publisher<std_msgs::msg::Float64>("car/brake", 10);
+        timer_ = this->create_wall_timer(
+            50ms, std::bind(&Serviture::timer_callback, this));
+        for (int i = 0; i < N; i++)
+        {
+            last_accelerations[i] = 0;
+            last_steerings[i] = 0;
+        }
+       subscription1_ = this->create_subscription<std_msgs::msg::Float64>(
+      "car/steering/angle/desired", 10, std::bind(&Serviture::steering_callback, this, _1));
+       subscription2_ = this->create_subscription<std_msgs::msg::Float64>(
+      "car/speed/desired", 10, std::bind(&Serviture::speed_callback, this, _1));
+       subscription3_ = this->create_subscription<std_msgs::msg::Float64>(
+      "car/steering/angle/actual", 10, std::bind(&Serviture::steering_actual_callback, this, _1));
+       subscription4_ = this->create_subscription<std_msgs::msg::Float64>(
+      "car/speed/actual", 10, std::bind(&Serviture::speed_actual_callback, this, _1));
     }
-    ros::init(argc, argv, std::string(hostnamePtr) + "_servitude");
-    ros::NodeHandle n;
-    ros::Subscriber sub_steer = n.subscribe("/car/steering/angle/desired", 1, steering_callback);
-    ros::Subscriber sub_speed = n.subscribe("/car/speed/desired", 1, speed_callback);
-    ros::Subscriber sub_steer2 = n.subscribe("/car/steering/angle/actual", 1, steering_actual_callback);
-    ros::Subscriber sub_speed2 = n.subscribe("/car/speed/actual", 1, speed_actual_callback);
-    pub_torque = n.advertise<std_msgs::Float64>("/car/steering/torque", 1);
-    pub_acceleration = n.advertise<std_msgs::Float64>("/car/throttle", 1);
-    pub_brake = n.advertise<std_msgs::Float64>("/car/brake", 1);
-    ros::Rate rate(2);
-    double sum_error_speed = 0;
-    double previous_error_speed = 0;
-    double sum_error_steering = 0;
-    double previous_error_steering = 0;
-    double last_accelerations[N];
-    double last_steerings[N];
-    int index = 0, count_cmd = N;
-    for (int i = 0; i < N; i++)
+    private:
+    void steering_callback(const std_msgs::msg::Float64::SharedPtr msg) const
     {
-        last_accelerations[i] = 0;
-        last_steerings[i] = 0;
+        steering= msg->data;
     }
-    
-
-    while(ros::ok())
+    void speed_callback(const std_msgs::msg::Float64::SharedPtr msg) const
     {
-        ros::spinOnce();
-        rate.sleep();
+        speed = msg->data;
+    }
+    void steering_actual_callback(const std_msgs::msg::Float64::SharedPtr msg) const
+    {
+        steering_actual = msg->data;
+    }
+    void speed_actual_callback(const std_msgs::msg::Float64::SharedPtr msg) const
+    {
+        speed_actual = msg->data;
+    }
+       void timer_callback()
+    {
         ++count_cmd;
         if (count_cmd > N) count_cmd = N;
 
@@ -122,9 +96,9 @@ int main(int argc, char *argv[])
         }
         torque /= count_cmd;
 
-        auto msg_torque = std_msgs::Float64();
+        auto msg_torque = std_msgs::msg::Float64();
         msg_torque.data = torque;
-        pub_torque.publish(msg_torque);
+        pub_torque->publish(msg_torque);
     
         double speed_error = speed_actual - speed;
         sum_error_speed += speed_error;
@@ -149,15 +123,37 @@ int main(int argc, char *argv[])
         }
         acceleration /= count_cmd;
 
-        auto msg_accel = std_msgs::Float64();
+        auto msg_accel = std_msgs::msg::Float64();
         msg_accel.data = acceleration;
-        pub_acceleration.publish(msg_accel);
-        auto msg_brake = std_msgs::Float64();
+        pub_acceleration->publish(msg_accel);
+        auto msg_brake = std_msgs::msg::Float64();
         msg_brake.data = brake;
-        pub_brake.publish(msg_brake);
+        pub_brake->publish(msg_brake);
         ++index;
         if (index == N) index = 0;
     }
     
+    double sum_error_speed = 0;
+    double previous_error_speed = 0;
+    double sum_error_steering = 0;
+    double previous_error_steering = 0;
+    double last_accelerations[N];
+    double last_steerings[N];
+    int index = 0, count_cmd = N;
+    rclcpp::TimerBase::SharedPtr timer_;
+    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr pub_torque;
+    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr pub_acceleration;
+    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr pub_brake;
+    rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr subscription1_;
+    rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr subscription2_;
+    rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr subscription3_;
+    rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr subscription4_;
+};
+
+int main(int argc, char *argv[])
+{
+    rclcpp::init(argc, argv);
+    rclcpp::spin(std::make_shared<Serviture>());
+    rclcpp::shutdown();
     return 0;
 }

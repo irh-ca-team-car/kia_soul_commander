@@ -1,6 +1,10 @@
-#define MAJOR 1
-#define MINOR 1
+
+#define MAJOR 2
+#define MINOR 0
 #define RELEASE 0
+#ifndef COMPILE_H
+#define COMPILE_H
+
 #ifndef COMMANDER
 #ifndef ROS
 #ifndef JOYSTICK
@@ -18,3 +22,5 @@ struct state
     double brakes;
     bool enabled;
 };
+
+#endif
