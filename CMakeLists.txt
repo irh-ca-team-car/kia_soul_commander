@@ -16,7 +16,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-set(VEHICLE kia_soul_ev)
+set(VEHICLE kia_soul_ev CACHE STRING docstring FORCE)
 include(oscc/api/OsccConfig.cmake)
 
 # find dependencies
