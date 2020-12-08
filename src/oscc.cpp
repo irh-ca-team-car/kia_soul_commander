@@ -41,7 +41,7 @@ oscc_result_t oscc_init()
     }
     else
     {
-        printf("Error: Could not find OSCC CAN signal\n");
+        DrivekitNode::error("Error: Could not find OSCC CAN signal\n");
         result = OSCC_ERROR;
     }
 
@@ -75,7 +75,7 @@ oscc_result_t oscc_open(unsigned int channel)
 
         if ((global_vehicle_can_socket < 0) || (vehicle_ret != OSCC_OK))
         {
-            printf("Warning: Vehicle CAN was not found.\n");
+            DrivekitNode::warn("Warning: Vehicle CAN was not found.\n");
         }
     }
 
@@ -92,7 +92,7 @@ oscc_result_t oscc_open(unsigned int channel)
     }
     else
     {
-        printf("Error: Could not find OSCC CAN signal.\n");
+        DrivekitNode::error("Error: Could not find OSCC CAN signal.\n");
     }
 
     if (result == OSCC_OK && global_vehicle_can_socket >= 0)
@@ -688,7 +688,8 @@ oscc_result_t init_oscc_can(const char *can_channel)
 
     if (can_channel != NULL)
     {
-        printf("Assigning OSCC CAN Channel to: %s\n", can_channel);
+        std::string msg="Assigning OSCC CAN Channel to: ";
+        DrivekitNode::info(msg+can_channel);
 
         global_oscc_can_socket = init_can_socket(can_channel, NULL);
     }
@@ -707,8 +708,9 @@ oscc_result_t init_vehicle_can(const char *can_channel)
 
     if (can_channel != NULL)
     {
-        printf("Assigning Vehicle CAN Channel to: %s\n", can_channel);
-
+         std::string msg="Assigning Vehicle CAN Channel to: ";
+        DrivekitNode::info(msg+can_channel);
+        
         global_vehicle_can_socket = init_can_socket(can_channel, NULL);
     }
 
@@ -747,7 +749,7 @@ int init_can_socket(const char *can_channel,
 
         if (valid < 0)
         {
-            perror("Finding CAN index failed:");
+            DrivekitNode::error("Finding CAN index failed:");
         }
     }
 

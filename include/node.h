@@ -9,42 +9,32 @@
 #include "can_msgs/msg/frame.hpp"
 #include "compile.h"
 #include "topics.h"
+#include "commander.h"
+#define SYSTEM(A, ...)                \
+    {                                 \
+        char m[1000];                 \
+        sprintf(m, A, ##__VA_ARGS__); \
+        system(m);                    \
+    }
 using namespace std::chrono_literals;
 using std::placeholders::_1;
 
 class DrivekitNode : public rclcpp::Node
 {
 public:
-    DrivekitNode()
-        : Node("car_drivekit")
+    DrivekitNode();
+    static void info(std::string msg)
     {
-        auto prefix = declare_parameter<std::string>("prefix", "car");
-        CAN_TOPIC = prefix + CAN_TOPIC_DEFAULT;
-        CAR_ANGLE_FEEDBACK_TOPIC = prefix + CAR_ANGLE_FEEDBACK_TOPIC_DEFAULT;
-        CAR_SPEED_FEEDBACK_TOPIC = prefix + CAR_SPEED_FEEDBACK_TOPIC_DEFAULT;
-        CAR_BRAKE_TOPIC = prefix + CAR_BRAKE_TOPIC_DEFAULT;
-        CAR_THROTTLE_TOPIC = prefix + CAR_THROTTLE_TOPIC_DEFAULT;
-        CAR_STEERING_TORQUE_TOPIC = prefix + CAR_STEERING_TORQUE_TOPIC_DEFAULT;
-        CAR_ENABLED_TOPIC = prefix + CAR_ENABLED_TOPIC_DEFAULT;
-
-        pub_canbs = this->create_publisher<can_msgs::msg::Frame>(CAN_TOPIC, 10);
-        pub_curr_speed = this->create_publisher<std_msgs::msg::Float64>(CAR_SPEED_FEEDBACK_TOPIC, 10);
-        pub_curr_angle = this->create_publisher<std_msgs::msg::Float64>(CAR_ANGLE_FEEDBACK_TOPIC, 10);
-
-        sub_steer = this->create_subscription<std_msgs::msg::Float64>(
-            CAR_STEERING_TORQUE_TOPIC, 10, std::bind(&DrivekitNode::steering_callback, this, _1));
-        sub_throt = this->create_subscription<std_msgs::msg::Float64>(
-            CAR_THROTTLE_TOPIC, 10, std::bind(&DrivekitNode::throttle_callback, this, _1));
-        sub_brake = this->create_subscription<std_msgs::msg::Float64>(
-            CAR_BRAKE_TOPIC, 10, std::bind(&DrivekitNode::brake_callback, this, _1));
-        sub_enabled = this->create_subscription<std_msgs::msg::Bool>(
-            CAR_ENABLED_TOPIC, 10, std::bind(&DrivekitNode::enabled_callback, this, _1));
-        instance = this;
-
-        timer_ = this->create_wall_timer(
-            1ms, std::bind(&DrivekitNode::timer_callback, this));
+        RCLCPP_INFO(instance->get_logger(), msg);
     }
-
+    static void warn(std::string msg)
+    {
+        RCLCPP_WARN(instance->get_logger(), msg);
+    }
+    static void error(std::string msg)
+    {
+        RCLCPP_ERROR(instance->get_logger(), msg);
+    }
     static void publishCan(can_msgs::msg::Frame msg)
     {
         instance->pub_canbs->publish(msg);
@@ -62,7 +52,9 @@ public:
         instance->pub_curr_angle->publish(msg_torque);
     }
     static state car_state;
-
+    int channel, bitrate;
+    bool run=true;
+    void shutdown();
 private:
     static DrivekitNode *instance;
     void steering_callback(const std_msgs::msg::Float64::SharedPtr msg) const;
