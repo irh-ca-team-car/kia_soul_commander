@@ -12,50 +12,63 @@
 using namespace std::chrono_literals;
 using std::placeholders::_1;
 
-class DrivekitNode:public rclcpp::Node{
+class DrivekitNode : public rclcpp::Node
+{
 public:
     DrivekitNode()
-    : Node("car_drivekit")
+        : Node("car_drivekit")
     {
+        auto prefix = declare_parameter<std::string>("prefix", "car");
+        CAN_TOPIC = prefix + CAN_TOPIC_DEFAULT;
+        CAR_ANGLE_FEEDBACK_TOPIC = prefix + CAR_ANGLE_FEEDBACK_TOPIC_DEFAULT;
+        CAR_SPEED_FEEDBACK_TOPIC = prefix + CAR_SPEED_FEEDBACK_TOPIC_DEFAULT;
+        CAR_BRAKE_TOPIC = prefix + CAR_BRAKE_TOPIC_DEFAULT;
+        CAR_THROTTLE_TOPIC = prefix + CAR_THROTTLE_TOPIC_DEFAULT;
+        CAR_STEERING_TORQUE_TOPIC = prefix + CAR_STEERING_TORQUE_TOPIC_DEFAULT;
+        CAR_ENABLED_TOPIC = prefix + CAR_ENABLED_TOPIC_DEFAULT;
+
         pub_canbs = this->create_publisher<can_msgs::msg::Frame>(CAN_TOPIC, 10);
         pub_curr_speed = this->create_publisher<std_msgs::msg::Float64>(CAR_SPEED_FEEDBACK_TOPIC, 10);
         pub_curr_angle = this->create_publisher<std_msgs::msg::Float64>(CAR_ANGLE_FEEDBACK_TOPIC, 10);
-        
-       sub_steer = this->create_subscription<std_msgs::msg::Float64>(
-      CAR_STEERING_TORQUE_TOPIC, 10, std::bind(&DrivekitNode::steering_callback, this, _1));
-       sub_throt = this->create_subscription<std_msgs::msg::Float64>(
-      CAR_THROTTLE_TOPIC, 10, std::bind(&DrivekitNode::throttle_callback, this, _1));
-       sub_brake = this->create_subscription<std_msgs::msg::Float64>(
-      CAR_BRAKE_TOPIC, 10, std::bind(&DrivekitNode::brake_callback, this, _1));
-       sub_enabled = this->create_subscription<std_msgs::msg::Bool>(
-      CAR_ENABLED_TOPIC, 10, std::bind(&DrivekitNode::enabled_callback, this, _1));
-      instance=this;
 
-      timer_ = this->create_wall_timer(
-      1ms, std::bind(&DrivekitNode::timer_callback, this));
+        sub_steer = this->create_subscription<std_msgs::msg::Float64>(
+            CAR_STEERING_TORQUE_TOPIC, 10, std::bind(&DrivekitNode::steering_callback, this, _1));
+        sub_throt = this->create_subscription<std_msgs::msg::Float64>(
+            CAR_THROTTLE_TOPIC, 10, std::bind(&DrivekitNode::throttle_callback, this, _1));
+        sub_brake = this->create_subscription<std_msgs::msg::Float64>(
+            CAR_BRAKE_TOPIC, 10, std::bind(&DrivekitNode::brake_callback, this, _1));
+        sub_enabled = this->create_subscription<std_msgs::msg::Bool>(
+            CAR_ENABLED_TOPIC, 10, std::bind(&DrivekitNode::enabled_callback, this, _1));
+        instance = this;
+
+        timer_ = this->create_wall_timer(
+            1ms, std::bind(&DrivekitNode::timer_callback, this));
     }
-    
+
     static void publishCan(can_msgs::msg::Frame msg)
     {
         instance->pub_canbs->publish(msg);
     }
-    static void publishSpeed(double speed){
+    static void publishSpeed(double speed)
+    {
         auto msg_torque = std_msgs::msg::Float64();
         msg_torque.data = speed;
         instance->pub_curr_speed->publish(msg_torque);
     }
-    static void publishAngle(double angle){
+    static void publishAngle(double angle)
+    {
         auto msg_torque = std_msgs::msg::Float64();
         msg_torque.data = angle;
         instance->pub_curr_angle->publish(msg_torque);
     }
     static state car_state;
+
 private:
-    static DrivekitNode* instance;
-    void steering_callback (const std_msgs::msg::Float64::SharedPtr msg) const;
-    void throttle_callback (const std_msgs::msg::Float64::SharedPtr msg) const;
-    void brake_callback (const std_msgs::msg::Float64::SharedPtr msg) const;
-    void enabled_callback (const std_msgs::msg::Bool::SharedPtr msg) const;
+    static DrivekitNode *instance;
+    void steering_callback(const std_msgs::msg::Float64::SharedPtr msg) const;
+    void throttle_callback(const std_msgs::msg::Float64::SharedPtr msg) const;
+    void brake_callback(const std_msgs::msg::Float64::SharedPtr msg) const;
+    void enabled_callback(const std_msgs::msg::Bool::SharedPtr msg) const;
     void timer_callback();
     rclcpp::TimerBase::SharedPtr timer_;
     rclcpp::Publisher<can_msgs::msg::Frame>::SharedPtr pub_canbs;
@@ -66,7 +79,5 @@ private:
     rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr sub_brake;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sub_enabled;
 };
-
-
 
 #endif

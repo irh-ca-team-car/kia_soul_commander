@@ -17,7 +17,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 set(VEHICLE kia_soul_ev CACHE STRING docstring FORCE)
-include(oscc/api/OsccConfig.cmake)
+include(cmake/OsccConfig.cmake)
 
 # find dependencies
 find_package(ament_cmake REQUIRED)

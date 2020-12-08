@@ -1,7 +1,7 @@
 
 #define MAJOR 2
 #define MINOR 0
-#define RELEASE 0
+#define RELEASE 1
 #ifndef COMPILE_H
 #define COMPILE_H
 

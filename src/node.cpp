@@ -1,5 +1,13 @@
 #include "node.h"
 #include "commander.h"
+std::string CAN_TOPIC;
+std::string CAR_ENABLED_TOPIC;
+std::string CAR_BRAKE_TOPIC;
+std::string CAR_THROTTLE_TOPIC;
+std::string CAR_STEERING_TORQUE_TOPIC;
+std::string CAR_SPEED_FEEDBACK_TOPIC;
+std::string CAR_ANGLE_FEEDBACK_TOPIC;
+
 void DrivekitNode::steering_callback(const std_msgs::msg::Float64::SharedPtr msg) const
 {
     double d = msg->data;

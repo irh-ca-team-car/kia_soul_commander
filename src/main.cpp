@@ -16,183 +16,64 @@
 #include "commander.h"
 #include "can_protocols/steering_can_protocol.h"
 #include "node.h"
+#define SYSTEM(A, ...)                \
+    {                                 \
+        char m[1000];                 \
+        sprintf(m, A, ##__VA_ARGS__); \
+        system(m);                    \
+    }
 
-int channel;
-void decodeParameters(int argc, char *argv[]);
+using namespace std;
+int channel, bitrate = 500000;
 int main(int argc, char *argv[])
 {
-    printf("V%d.%d.%d: COMPILED WITH [", MAJOR, MINOR, RELEASE);
-    printf(" ROS2 ");
-    printf(" DRIVEKIT ");
-    printf("]\r\n");
+    rclcpp::init(argc, argv);
+    auto n = std::make_shared<DrivekitNode>();
+    auto log = n->get_logger();
+    RCLCPP_INFO(log, "V%d.%d.%d: COMPILED WITH [ ROS2 DRIVEKIT ]", MAJOR, MINOR, RELEASE);
+
+    channel = n->declare_parameter<int>("channel", 0);
 
     errno = 0;
 
-    decodeParameters(argc, argv);
     oscc_result_t ret = OSCC_OK;
 
-    char m[150];
-    sprintf(m, "ifconfig can%d down\n", channel);
-    system(m);
-
-    sprintf(m, "ip link set can%d type can bitrate 500000\n", channel);
-    system(m);
-
-    sprintf(m, "ip link set up can%d\n", channel);
-    system(m);
-
-    sprintf(m, "ifconfig can%d up\n", channel);
-    system(m);
+    RCLCPP_INFO(log, "Configuring canbus");
+    if (geteuid())
+    {
+        RCLCPP_WARN(log, "Could not set canbus speed, run as root or set manually and restart the node");
+        RCLCPP_WARN(log, "If you already did these step, ignore the warning");
+        RCLCPP_WARN(log, "\tsudo ifconfig can%d down", channel);
+        RCLCPP_WARN(log, "\tsudo ip link set can%d type can bitrate %d", channel, bitrate);
+        RCLCPP_WARN(log, "\tsudo ip link set up can%d", channel);
+        RCLCPP_WARN(log, "\tsudo ifconfig can%d up", channel);
+        RCLCPP_WARN(log, "If you already did these step, ignore the warning");
+    }
+    else
+    {
+        SYSTEM("ifconfig can%d down\n", channel);
+        SYSTEM("ip link set can%d type can bitrate %d\n", channel, bitrate);
+        SYSTEM("ip link set up can%d\n", channel);
+        SYSTEM("ifconfig can%d up\n", channel);
+    }
 
     ret = (oscc_result_t)commander_init(channel);
     if (ret == OSCC_OK)
     {
-        printf("\nStatus : OK : WAITING FOR ROS TOPICS\n");
-        printf("\tCANBUS   TOPIC   :" CAN_TOPIC"\n");
-        printf("\tFEEDBACK TOPICS  :" CAR_ANGLE_FEEDBACK_TOPIC"\n");
-        printf("\t                  " CAR_SPEED_FEEDBACK_TOPIC"\n");
-        printf("\tCOMMAND TOPICS   :" CAR_BRAKE_TOPIC "\n");
-        printf("\t                  " CAR_THROTTLE_TOPIC"\n");
-        printf("\t                  " CAR_STEERING_TORQUE_TOPIC"\n");
-        printf("\t                  " CAR_ENABLED_TOPIC "\n");
+        RCLCPP_INFO(log, "Status : OK : WAITING FOR ROS TOPICS");
+        RCLCPP_INFO(log, "\tCANBUS   TOPIC   :%s", CAN_TOPIC.c_str());
+        RCLCPP_INFO(log, "\tFEEDBACK TOPICS  :%s", CAR_ANGLE_FEEDBACK_TOPIC.c_str());
+        RCLCPP_INFO(log, "\t                  %s", CAR_SPEED_FEEDBACK_TOPIC.c_str());
+        RCLCPP_INFO(log, "\tCOMMAND TOPICS   :%s", CAR_BRAKE_TOPIC.c_str());
+        RCLCPP_INFO(log, "\t                  %s", CAR_THROTTLE_TOPIC.c_str());
+        RCLCPP_INFO(log, "\t                  %s", CAR_STEERING_TORQUE_TOPIC.c_str());
+        RCLCPP_INFO(log, "\t                  %s", CAR_ENABLED_TOPIC.c_str());
 
-        rclcpp::init(argc, argv);
-        rclcpp::spin(std::make_shared<DrivekitNode>());
+        
+        rclcpp::spin(n);
         rclcpp::shutdown();
-           
+
         commander_close(channel);
     }
     return 0;
-}
-bool isInteger(std::string line)
-{
-    if (line.empty())
-        return false;
-    char *p;
-    strtol(line.c_str(), &p, 10);
-    return *p == 0;
-}
-bool isDouble(std::string line)
-{
-    if (line.empty())
-        return false;
-    char *p;
-    strtod(line.c_str(), &p);
-    return *p == 0;
-}
-std::string getValueForParameter(std::string name, std::vector<std::string> unnamed, std::map<std::string, std::string> named, int &idx)
-{
-    if (!named[name].empty())
-        return named.at(name);
-    if (idx < (int)unnamed.size())
-    {
-        auto ret = unnamed[idx];
-        idx++;
-        return ret;
-    }
-    return "\b";
-}
-bool isParameterPresent(std::string name, std::map<std::string, std::string> named)
-{
-    return (!named[name].empty());
-}
-int asInt(std::string name, std::string val, int def, bool mandatory)
-{
-    int ret;
-    if (!isInteger(val.c_str()))
-    {
-        if (mandatory)
-        {
-            std::cout << "argument " + name + " is missing or invalid";
-            exit(1);
-        }
-        else
-        {
-            ret = def;
-        }
-    }
-    else
-    {
-        ret = atoi(val.c_str());
-    }
-    return ret;
-}
-double asDouble(std::string name, std::string val, double def, bool mandatory)
-{
-    double ret;
-    if (!isDouble(val.c_str()))
-    {
-        if (mandatory)
-        {
-            std::cout << "argument " + name + " is missing or invalid";
-            exit(1);
-        }
-        else
-        {
-            ret = def;
-        }
-    }
-    else
-    {
-        ret = atof(val.c_str());
-    }
-    return ret;
-}
-int getValueForParameterInt(std::string name, std::vector<std::string> unnamed, std::map<std::string, std::string> named, int &idx, int def, bool mandatory)
-{
-    return asInt(name, getValueForParameter(name, unnamed, named, idx), def, mandatory);
-}
-double getValueForParameterDouble(std::string name, std::vector<std::string> unnamed, std::map<std::string, std::string> named, int &idx, double def, bool mandatory)
-{
-    return asDouble(name, getValueForParameter(name, unnamed, named, idx), def, mandatory);
-}
-std::string getValueForParameterString(std::string name, std::vector<std::string> unnamed, std::map<std::string, std::string> named, int &idx, std::string def, bool mandatory)
-{
-    std::string tmp = getValueForParameter(name, unnamed, named, idx);
-    if (tmp.empty())
-        return def;
-    else if(mandatory)
-        throw "ERROR";
-    return "";
-}
-void decodeParameters(int argc, char *argv[])
-{
-    //check parameters validity
-    bool foundNamed = false, previousIsName = false;
-    std::string previous;
-    std::map<std::string, std::string> parameters;
-    std::vector<std::string> unnamed;
-    for (auto i = 1; i < argc; i++)
-    {
-        auto isNumber = isDouble(argv[i]);
-        auto isNamed = !isNumber && argv[i][0] == '-';
-        if (isNamed)
-        {
-            if (previousIsName)
-                parameters[previous] = "<exists>";
-            foundNamed = true;
-            previousIsName = true;
-            previous = argv[i];
-            if (i == argc - 1)
-                parameters[previous] = "<exists>";
-        }
-        else //not named
-        {
-            if (foundNamed && previousIsName)
-            {
-                parameters[previous] = argv[i];
-            }
-            else
-            {
-                unnamed.push_back(argv[i]);
-            }
-
-            previousIsName = false;
-        }
-    }
-  
-    int idx = 0;
-    std::vector<std::string> empty;
-    channel = getValueForParameterInt("-c", unnamed, parameters, idx, 0, false);
-    channel = getValueForParameterInt("-channel", unnamed, parameters, idx, channel, false);
 }
