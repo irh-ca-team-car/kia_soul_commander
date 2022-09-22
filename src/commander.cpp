@@ -40,7 +40,7 @@
 #define THROTTLE_FILTER_FACTOR (0.2)
 #define STEERING_FILTER_FACTOR (0.1)
 #define STEERING_RANGE_PERCENTAGE (0.36)
-//STEERING_RANGE_PERCENTAGE 0.36
+// STEERING_RANGE_PERCENTAGE 0.36
 
 static int commander_enabled = COMMANDER_DISABLED;
 
@@ -208,19 +208,18 @@ static void obd_callback(struct can_frame *frame)
 
         DrivekitNode::publishAngle(curr_angle);
     }
-    if(frame->can_id == KIA_SOUL_OBD_WHEEL_SPEED_CAN_ID)
+    if (frame->can_id == KIA_SOUL_OBD_WHEEL_SPEED_CAN_ID)
     {
-        long offset=0;
+        long offset = 0;
         uint16_t raw = ((frame->data[offset + 1] & 0x0F) << 8) | frame->data[offset];
         // 10^-1 precision, raw / 32.0
         double wheel_speed = (double)((int)((double)raw / 3.2) / 10.0);
-        
+
         DrivekitNode::publishSpeed(wheel_speed);
     }
 }
 
-
-void commander_update(state &car_state)
+void commander_update(state &car_state, rclcpp::Time time)
 {
     if (car_state.enabled && !previous.enabled)
         commander_enable_controls();
@@ -228,14 +227,17 @@ void commander_update(state &car_state)
         commander_disable_controls();
     if (commander_enabled == COMMANDER_ENABLED && control_enabled == true)
     {
-        oscc_publish_brake_position(car_state.brakes);
+        if (car_state.brakes_time + car_state.max_duration > time)
+            oscc_publish_brake_position(car_state.brakes);
         auto normalized_throttle_position = car_state.throttle;
         if (car_state.brakes >= BRAKES_ENABLED_MIN)
         {
             normalized_throttle_position = 0.0;
         }
-        oscc_publish_throttle_position(normalized_throttle_position);
-        oscc_publish_steering_torque(car_state.steering_torque);
+        if (car_state.throttle_time + car_state.max_duration > time)
+            oscc_publish_throttle_position(normalized_throttle_position);
+        if (car_state.steering_torque_time + car_state.max_duration > time)
+            oscc_publish_steering_torque(car_state.steering_torque);
     }
     previous = car_state;
 }

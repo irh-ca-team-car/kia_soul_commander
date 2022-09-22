@@ -96,20 +96,23 @@ void DrivekitNode::shutdown()
     RCLCPP_INFO(get_logger(), "Status : Shutting down ");
     commander_close(channel);
 }
-void DrivekitNode::steering_callback(const std_msgs::msg::Float64::SharedPtr msg) const
+void DrivekitNode::steering_callback(const std_msgs::msg::Float64::SharedPtr msg) 
 {
     double d = msg->data;
     DrivekitNode::car_state.steering_torque = d;
+    DrivekitNode::car_state.steering_torque_time = get_clock()->now();
 }
-void DrivekitNode::throttle_callback(const std_msgs::msg::Float64::SharedPtr msg) const
+void DrivekitNode::throttle_callback(const std_msgs::msg::Float64::SharedPtr msg) 
 {
     double d = msg->data;
     DrivekitNode::car_state.throttle = d;
+    DrivekitNode::car_state.throttle_time = get_clock()->now();
 }
-void DrivekitNode::brake_callback(const std_msgs::msg::Float64::SharedPtr msg) const
+void DrivekitNode::brake_callback(const std_msgs::msg::Float64::SharedPtr msg) 
 {
     double d = msg->data;
     DrivekitNode::car_state.brakes = d;
+    DrivekitNode::car_state.brakes_time = get_clock()->now();
 }
 void DrivekitNode::enabled_callback(const std_msgs::msg::Bool::SharedPtr msg) const
 {
@@ -124,7 +127,7 @@ void DrivekitNode::enabled_callback(const std_msgs::msg::Bool::SharedPtr msg) co
 
 void DrivekitNode::timer_callback()
 {
-    commander_update(car_state);
+    commander_update(car_state, get_clock()->now());
 }
 state DrivekitNode::car_state;
 DrivekitNode *DrivekitNode::instance;

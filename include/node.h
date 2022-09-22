@@ -57,9 +57,9 @@ public:
     void shutdown();
 private:
     static DrivekitNode *instance;
-    void steering_callback(const std_msgs::msg::Float64::SharedPtr msg) const;
-    void throttle_callback(const std_msgs::msg::Float64::SharedPtr msg) const;
-    void brake_callback(const std_msgs::msg::Float64::SharedPtr msg) const;
+    void steering_callback(const std_msgs::msg::Float64::SharedPtr msg) ;
+    void throttle_callback(const std_msgs::msg::Float64::SharedPtr msg) ;
+    void brake_callback(const std_msgs::msg::Float64::SharedPtr msg) ;
     void enabled_callback(const std_msgs::msg::Bool::SharedPtr msg) const;
     void timer_callback();
     rclcpp::TimerBase::SharedPtr timer_;
