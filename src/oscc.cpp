@@ -189,7 +189,7 @@ oscc_result_t oscc_publish_brake_position(double brake_position)
 {
     oscc_result_t result = OSCC_ERROR;
 
-    oscc_brake_command_s brake_cmd ;
+    oscc_brake_command_s brake_cmd;
     {
         brake_cmd.magic[0] = (uint8_t)OSCC_MAGIC_BYTE_0;
         brake_cmd.magic[1] = (uint8_t)OSCC_MAGIC_BYTE_1;
@@ -209,7 +209,7 @@ oscc_result_t oscc_publish_throttle_position(double throttle_position)
 {
     oscc_result_t result = OSCC_ERROR;
 
-    oscc_throttle_command_s throttle_cmd ;
+    oscc_throttle_command_s throttle_cmd;
     {
         throttle_cmd.magic[0] = (uint8_t)OSCC_MAGIC_BYTE_0;
         throttle_cmd.magic[1] = (uint8_t)OSCC_MAGIC_BYTE_1;
@@ -229,7 +229,7 @@ oscc_result_t oscc_publish_steering_torque(double torque)
 {
     oscc_result_t result = OSCC_ERROR;
 
-    oscc_steering_command_s steering_cmd ;
+    oscc_steering_command_s steering_cmd;
     {
         steering_cmd.magic[0] = (uint8_t)OSCC_MAGIC_BYTE_0;
         steering_cmd.magic[1] = (uint8_t)OSCC_MAGIC_BYTE_1;
@@ -315,7 +315,7 @@ oscc_result_t oscc_enable_brakes(void)
 {
     oscc_result_t result = OSCC_ERROR;
 
-    oscc_brake_enable_s brake_enable ;
+    oscc_brake_enable_s brake_enable;
     {
         brake_enable.magic[0] = (uint8_t)OSCC_MAGIC_BYTE_0;
         brake_enable.magic[1] = (uint8_t)OSCC_MAGIC_BYTE_1;
@@ -333,7 +333,7 @@ oscc_result_t oscc_enable_throttle(void)
 {
     oscc_result_t result = OSCC_ERROR;
 
-    oscc_throttle_enable_s throttle_enable ;
+    oscc_throttle_enable_s throttle_enable;
     {
         throttle_enable.magic[0] = (uint8_t)OSCC_MAGIC_BYTE_0;
         throttle_enable.magic[1] = (uint8_t)OSCC_MAGIC_BYTE_1;
@@ -413,9 +413,9 @@ oscc_result_t oscc_disable_steering(void)
 
 void oscc_update_status(int sig, siginfo_t *siginfo, void *context)
 {
-    sig++;                            //FOR UNUSED WARNIGN
-    (siginfo++);                      //FOR UNUSED WARNIGN
-    siginfo = ((siginfo_t *)context); //FOR UNUSED WARNIGN
+    sig++;                            // FOR UNUSED WARNIGN
+    (siginfo++);                      // FOR UNUSED WARNIGN
+    siginfo = ((siginfo_t *)context); // FOR UNUSED WARNIGN
     struct can_frame rx_frame;
     memset(&rx_frame, 0, sizeof(rx_frame));
 
@@ -430,7 +430,6 @@ void oscc_update_status(int sig, siginfo_t *siginfo, void *context)
                 f.data[i] = rx_frame.data[i];
             f.id = rx_frame.can_id;
             f.dlc = rx_frame.can_dlc;
-            DrivekitNode::publishCan(f);
 
             if ((rx_frame.data[0] == OSCC_MAGIC_BYTE_0) && (rx_frame.data[1] == OSCC_MAGIC_BYTE_1))
             {
@@ -477,6 +476,7 @@ void oscc_update_status(int sig, siginfo_t *siginfo, void *context)
             }
             else
             {
+                DrivekitNode::publishCan(f);
                 if (obd_frame_callback != NULL && global_vehicle_can_socket < 0)
                 {
                     obd_frame_callback(&rx_frame);
@@ -489,7 +489,15 @@ void oscc_update_status(int sig, siginfo_t *siginfo, void *context)
 
     if (global_vehicle_can_socket >= 0)
     {
+
         int vehicle_can_bytes = read(global_vehicle_can_socket, &rx_frame, CAN_MTU);
+
+        can_msgs::msg::Frame f;
+        for (int i = 0; i < 8; i++)
+            f.data[i] = rx_frame.data[i];
+        f.id = rx_frame.can_id;
+        f.dlc = rx_frame.can_dlc;
+        DrivekitNode::publishCan(f);
 
         while (vehicle_can_bytes > 0)
         {
@@ -601,8 +609,8 @@ oscc_result_t oscc_search_can(can_contains_s (*search_callback)(const char *),
         result = construct_interfaces_list(&dev_list);
     }
 
-    //temp_contents is the temporary storage of the current CAN channel
-    //all_contents is the sum of all channels searched
+    // temp_contents is the temporary storage of the current CAN channel
+    // all_contents is the sum of all channels searched
     can_contains_s temp_contents;
     can_contains_s all_contents;
     all_contents.is_oscc = !search_oscc;
@@ -620,7 +628,7 @@ oscc_result_t oscc_search_can(can_contains_s (*search_callback)(const char *),
 
             all_contents.has_vehicle |= temp_contents.has_vehicle;
 
-            //Leave the while loop if both requirements are met
+            // Leave the while loop if both requirements are met
             if (all_contents.is_oscc && all_contents.has_vehicle)
             {
                 break;
@@ -688,8 +696,8 @@ oscc_result_t init_oscc_can(const char *can_channel)
 
     if (can_channel != NULL)
     {
-        std::string msg="Assigning OSCC CAN Channel to: ";
-        DrivekitNode::info(msg+can_channel);
+        std::string msg = "Assigning OSCC CAN Channel to: ";
+        DrivekitNode::info(msg + can_channel);
 
         global_oscc_can_socket = init_can_socket(can_channel, NULL);
     }
@@ -708,9 +716,9 @@ oscc_result_t init_vehicle_can(const char *can_channel)
 
     if (can_channel != NULL)
     {
-         std::string msg="Assigning Vehicle CAN Channel to: ";
-        DrivekitNode::info(msg+can_channel);
-        
+        std::string msg = "Assigning Vehicle CAN Channel to: ";
+        DrivekitNode::info(msg + can_channel);
+
         global_vehicle_can_socket = init_can_socket(can_channel, NULL);
     }
 
@@ -753,8 +761,8 @@ int init_can_socket(const char *can_channel,
         }
     }
 
-    //If a timeout has been specified set one here since it should be set before
-    //the bind call
+    // If a timeout has been specified set one here since it should be set before
+    // the bind call
     if (valid >= 0 && tv != NULL)
     {
         valid = setsockopt(sock,
@@ -913,7 +921,7 @@ oscc_result_t construct_interfaces_list(device_names_s *const names_ptr)
 
         rewind(file_handler);
 
-        //Consume the first two lines since they are headers
+        // Consume the first two lines since they are headers
         fgets(buffer, sizeof(buffer), file_handler);
         fgets(buffer, sizeof(buffer), file_handler);
     }
