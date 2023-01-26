@@ -227,16 +227,16 @@ void commander_update(state &car_state, rclcpp::Time time)
         commander_disable_controls();
     if (commander_enabled == COMMANDER_ENABLED && control_enabled == true)
     {
-        if (car_state.brakes_time + car_state.max_duration > time)
+        //if (car_state.brakes_time + car_state.max_duration > time)
             oscc_publish_brake_position(car_state.brakes);
         auto normalized_throttle_position = car_state.throttle;
         if (car_state.brakes >= BRAKES_ENABLED_MIN)
         {
             normalized_throttle_position = 0.0;
         }
-        if (car_state.throttle_time + car_state.max_duration > time)
+        //if (car_state.throttle_time + car_state.max_duration > time)
             oscc_publish_throttle_position(normalized_throttle_position);
-        if (car_state.steering_torque_time + car_state.max_duration > time)
+        //if (car_state.steering_torque_time + car_state.max_duration > time)
             oscc_publish_steering_torque(car_state.steering_torque);
     }
     previous = car_state;
