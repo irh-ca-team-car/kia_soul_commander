@@ -21,7 +21,7 @@ DrivekitNode::DrivekitNode() : Node("car_drivekit")
     RCLCPP_INFO(get_logger(), "--------------------");
     RCLCPP_INFO(get_logger(), "Parameters");
     RCLCPP_INFO(get_logger(), "--------------------");
-    RCLCPP_INFO(get_logger(), "\tprefix=" + prefix);
+    RCLCPP_INFO(get_logger(), "\tprefix=%s" , prefix.c_str());
     RCLCPP_INFO(get_logger(), "\tchannel=can%d", channel);
     RCLCPP_INFO(get_logger(), "\tbitrate=%d", bitrate);
     RCLCPP_INFO(get_logger(), "--------------------");

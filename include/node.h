@@ -25,15 +25,18 @@ public:
     DrivekitNode();
     static void info(std::string msg)
     {
-        RCLCPP_INFO(instance->get_logger(), msg);
+        std::cout << "[INFO]" << msg;
+        //RCLCPP_INFO(instance->get_logger(), msg);
     }
     static void warn(std::string msg)
     {
-        RCLCPP_WARN(instance->get_logger(), msg);
+        std::cerr << "[WARN]" << msg;
+        //RCLCPP_WARN(instance->get_logger(), msg);
     }
     static void error(std::string msg)
     {
-        RCLCPP_ERROR(instance->get_logger(), msg);
+        std::cerr << "[ERROR]" << msg;
+        //RCLCPP_ERROR(instance->get_logger(), msg);
     }
     static void publishCan(can_msgs::msg::Frame msg)
     {
